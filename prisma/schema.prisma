@@ -1,0 +1,274 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
+// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
+
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "mysql"
+  url      = env("DATABASE_URL")
+}
+
+enum MediaType {
+  TEXT
+  PHOTO
+  VIDEO
+}
+
+enum NotificationType {
+  LIKE
+  COMMENT
+  FOLLOW
+  COMMENT_REPLY
+  FOLLOW_REQUEST
+  FOLLOW_REQUEST_ACCEPTED
+}
+
+enum FollowRequestStatus {
+  PENDING
+  ACCEPTED
+  REJECTED
+}
+
+enum MockContentType {
+  INSTAGRAM_POST
+  SHORT_VIDEO_CAPTION
+  STORY_TEXT
+  TIKTOK_CAPTION
+  MOTIVATIONAL
+  EDUCATIONAL
+  ENTERTAINMENT
+  PRODUCT_PROMOTION
+}
+
+enum ContentTone {
+  FRIENDLY
+  PROFESSIONAL
+  FUNNY
+  INFORMATIVE
+  INSPIRING
+  MINIMAL
+}
+
+model User {
+  id                     String          @id @default(uuid()) @db.Char(36)
+  username               String          @unique @db.VarChar(30)
+  usernameKey            String          @unique @db.VarChar(30)
+  passwordHash           String          @db.VarChar(255)
+  displayName            String?         @db.VarChar(60)
+  bio                    String?         @db.VarChar(300)
+  avatarUrl              String?         @db.VarChar(2048)
+  coverUrl               String?         @db.VarChar(2048)
+  isPrivate              Boolean         @default(false)
+  createdAt              DateTime        @default(now()) @db.DateTime(3)
+  updatedAt              DateTime        @updatedAt @db.DateTime(3)
+  posts                  Post[]
+  comments               Comment[]
+  likes                  Like[]
+  followers              Follow[]        @relation("FollowingUser")
+  following              Follow[]        @relation("FollowerUser")
+  followRequestsSent     FollowRequest[] @relation("FollowRequester")
+  followRequestsReceived FollowRequest[] @relation("FollowTarget")
+  savedPosts             SavedPost[]
+  notifications          Notification[]  @relation("NotificationRecipient")
+  notificationsSent      Notification[]  @relation("NotificationActor")
+  stories                Story[]
+  storyViews             StoryView[]
+  mockContents           MockContent[]
+  sessions               Session[]
+
+  @@index([createdAt])
+}
+
+model Post {
+  id            String        @id @default(uuid()) @db.Char(36)
+  userId        String        @db.Char(36)
+  caption       String?       @db.Text
+  mediaUrl      String?       @db.VarChar(2048)
+  mediaType     MediaType     @default(TEXT)
+  thumbnailUrl  String?       @db.VarChar(2048)
+  location      String?       @db.VarChar(160)
+  createdAt     DateTime      @default(now()) @db.DateTime(3)
+  updatedAt     DateTime      @updatedAt @db.DateTime(3)
+  user          User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  comments      Comment[]
+  likes         Like[]
+  savedBy       SavedPost[]
+  hashtags      PostHashtag[]
+  notifications Notification[]
+
+  @@index([userId, createdAt])
+  @@index([createdAt])
+  @@index([mediaType, createdAt])
+}
+
+model Comment {
+  id            String         @id @default(uuid()) @db.Char(36)
+  postId        String         @db.Char(36)
+  userId        String         @db.Char(36)
+  content       String         @db.Text
+  parentId      String?        @db.Char(36)
+  createdAt     DateTime       @default(now()) @db.DateTime(3)
+  updatedAt     DateTime       @updatedAt @db.DateTime(3)
+  post          Post           @relation(fields: [postId], references: [id], onDelete: Cascade)
+  user          User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  parent        Comment?       @relation("CommentReplies", fields: [parentId], references: [id], onDelete: SetNull)
+  replies       Comment[]      @relation("CommentReplies")
+  notifications Notification[]
+
+  @@index([postId, createdAt])
+  @@index([userId, createdAt])
+  @@index([parentId])
+}
+
+model Like {
+  id        String   @id @default(uuid()) @db.Char(36)
+  userId    String   @db.Char(36)
+  postId    String   @db.Char(36)
+  createdAt DateTime @default(now()) @db.DateTime(3)
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  post      Post     @relation(fields: [postId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, postId])
+  @@index([postId, createdAt])
+}
+
+model Follow {
+  id          String   @id @default(uuid()) @db.Char(36)
+  followerId  String   @db.Char(36)
+  followingId String   @db.Char(36)
+  createdAt   DateTime @default(now()) @db.DateTime(3)
+  follower    User     @relation("FollowerUser", fields: [followerId], references: [id], onDelete: Cascade)
+  following   User     @relation("FollowingUser", fields: [followingId], references: [id], onDelete: Cascade)
+
+  @@unique([followerId, followingId])
+  @@index([followingId, createdAt])
+}
+
+model FollowRequest {
+  id          String              @id @default(uuid()) @db.Char(36)
+  requesterId String              @db.Char(36)
+  targetId    String              @db.Char(36)
+  status      FollowRequestStatus @default(PENDING)
+  createdAt   DateTime            @default(now()) @db.DateTime(3)
+  updatedAt   DateTime            @updatedAt @db.DateTime(3)
+  requester   User                @relation("FollowRequester", fields: [requesterId], references: [id], onDelete: Cascade)
+  target      User                @relation("FollowTarget", fields: [targetId], references: [id], onDelete: Cascade)
+
+  @@unique([requesterId, targetId])
+  @@index([targetId, status, createdAt])
+}
+
+model SavedPost {
+  id        String   @id @default(uuid()) @db.Char(36)
+  userId    String   @db.Char(36)
+  postId    String   @db.Char(36)
+  createdAt DateTime @default(now()) @db.DateTime(3)
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  post      Post     @relation(fields: [postId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, postId])
+  @@index([userId, createdAt])
+}
+
+model Notification {
+  id        String           @id @default(uuid()) @db.Char(36)
+  userId    String           @db.Char(36)
+  actorId   String           @db.Char(36)
+  type      NotificationType
+  postId    String?          @db.Char(36)
+  commentId String?          @db.Char(36)
+  isRead    Boolean          @default(false)
+  createdAt DateTime         @default(now()) @db.DateTime(3)
+  user      User             @relation("NotificationRecipient", fields: [userId], references: [id], onDelete: Cascade)
+  actor     User             @relation("NotificationActor", fields: [actorId], references: [id], onDelete: Cascade)
+  post      Post?            @relation(fields: [postId], references: [id], onDelete: SetNull)
+  comment   Comment?         @relation(fields: [commentId], references: [id], onDelete: SetNull)
+
+  @@index([userId, isRead, createdAt])
+  @@index([actorId, createdAt])
+}
+
+model Story {
+  id        String      @id @default(uuid()) @db.Char(36)
+  userId    String      @db.Char(36)
+  mediaUrl  String      @db.VarChar(2048)
+  mediaType MediaType
+  createdAt DateTime    @default(now()) @db.DateTime(3)
+  expiresAt DateTime    @db.DateTime(3)
+  user      User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  views     StoryView[]
+
+  @@index([userId, expiresAt])
+  @@index([expiresAt])
+}
+
+model StoryView {
+  id        String   @id @default(uuid()) @db.Char(36)
+  storyId   String   @db.Char(36)
+  viewerId  String   @db.Char(36)
+  createdAt DateTime @default(now()) @db.DateTime(3)
+  story     Story    @relation(fields: [storyId], references: [id], onDelete: Cascade)
+  viewer    User     @relation(fields: [viewerId], references: [id], onDelete: Cascade)
+
+  @@unique([storyId, viewerId])
+  @@index([viewerId, createdAt])
+}
+
+model Hashtag {
+  id        String        @id @default(uuid()) @db.Char(36)
+  name      String        @db.VarChar(100)
+  tagKey    String        @unique @db.VarChar(100)
+  createdAt DateTime      @default(now()) @db.DateTime(3)
+  posts     PostHashtag[]
+
+  @@index([createdAt])
+}
+
+model PostHashtag {
+  postId    String   @db.Char(36)
+  hashtagId String   @db.Char(36)
+  createdAt DateTime @default(now()) @db.DateTime(3)
+  post      Post     @relation(fields: [postId], references: [id], onDelete: Cascade)
+  hashtag   Hashtag  @relation(fields: [hashtagId], references: [id], onDelete: Cascade)
+
+  @@id([postId, hashtagId])
+  @@index([hashtagId, createdAt])
+}
+
+model MockContent {
+  id                String          @id @default(uuid()) @db.Char(36)
+  userId            String          @db.Char(36)
+  topic             String          @db.VarChar(200)
+  targetAudience    String?         @db.VarChar(200)
+  tone              ContentTone
+  contentType       MockContentType
+  language          String          @default("tr") @db.VarChar(32)
+  keywords          Json?
+  generatedCaption  String          @db.Text
+  alternateCaptions Json?
+  suggestedHashtags Json
+  isDraft           Boolean         @default(false)
+  createdAt         DateTime        @default(now()) @db.DateTime(3)
+  user              User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, createdAt])
+  @@index([userId, isDraft, createdAt])
+}
+
+model Session {
+  id        String   @id @default(uuid()) @db.Char(36)
+  userId    String   @db.Char(36)
+  tokenHash String   @unique @db.Char(64)
+  expiresAt DateTime @db.DateTime(3)
+  createdAt DateTime @default(now()) @db.DateTime(3)
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, expiresAt])
+  @@index([expiresAt])
+}
