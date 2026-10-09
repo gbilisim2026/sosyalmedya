@@ -5,6 +5,7 @@ import { acceptFollowRequestAction, followUserAction, unfollowUserAction } from 
 import { SiteHeader } from "@/app/site-header";
 import { getCurrentUser } from "@/lib/session";
 import { prisma } from "@/lib/prisma";
+import { visualEffectClass } from "@/lib/effects";
 
 export const instant = false;
 
@@ -55,7 +56,10 @@ export default async function ProfilePage({ params }: ProfilePageProps) {
   const [posts, stories] = canViewContent
     ? await Promise.all([
         prisma.post.findMany({
-          where: { userId: profile.id },
+          where: {
+            userId: profile.id,
+            ...(!isOwnProfile && !follow ? { visibility: "PUBLIC" as const } : {}),
+          },
           include: { _count: { select: { likes: true, comments: true } } },
           orderBy: { createdAt: "desc" },
         }),
@@ -98,8 +102,8 @@ export default async function ProfilePage({ params }: ProfilePageProps) {
             {profile.bio && <p className="mt-3 max-w-xl whitespace-pre-wrap text-sm leading-6">{profile.bio}</p>}
             <div className="mt-5 flex flex-wrap gap-x-7 gap-y-2 text-sm">
               <span><b>{profile._count.posts}</b> gönderi</span>
-              <span><b>{profile._count.followers}</b> takipçi</span>
-              <span><b>{profile._count.following}</b> takip edilen</span>
+              <Link href={`/profile/${encodeURIComponent(profile.username)}/followers`} className="hover:text-[#315b46] hover:underline"><b>{profile._count.followers}</b> takipçi</Link>
+              <Link href={`/profile/${encodeURIComponent(profile.username)}/following`} className="hover:text-[#315b46] hover:underline"><b>{profile._count.following}</b> takip edilen</Link>
             </div>
           </div>
         </div>
@@ -136,8 +140,8 @@ export default async function ProfilePage({ params }: ProfilePageProps) {
               {posts.length === 0 ? <p className="py-12 text-center text-sm text-[#788179]">Henüz gönderi yok.</p> :
                 <div className="mt-4 grid grid-cols-2 gap-2 sm:grid-cols-3 sm:gap-4">
                   {posts.map((post) => <article key={post.id} className="flex aspect-square min-w-0 flex-col justify-between overflow-hidden rounded-xl border border-[#e1e6df] bg-white">
-                    {post.mediaType === "PHOTO" && post.mediaUrl ? <div className="relative min-h-0 flex-1"><Image src={post.mediaUrl} alt={post.caption ?? "Gönderi"} fill sizes="(max-width: 640px) 50vw, 33vw" className="object-cover" /></div> : post.mediaType === "VIDEO" && post.mediaUrl ? <video src={post.mediaUrl} controls className="h-full min-h-0 w-full bg-black object-contain" /> : <p className="line-clamp-6 whitespace-pre-wrap p-3 text-sm leading-6">{post.caption}</p>}
-                    <div className="shrink-0 border-t border-[#edf0eb] px-3 py-2 text-xs text-[#68716b]">{post._count.likes} beğeni · {post._count.comments} yorum</div>
+                    {post.mediaType === "PHOTO" && post.mediaUrl ? <div className={`relative min-h-0 flex-1 ${visualEffectClass(post.visualEffect)}`}><Image src={post.mediaUrl} alt={post.caption ?? "Gönderi"} fill sizes="(max-width: 640px) 50vw, 33vw" className="object-cover" /></div> : post.mediaType === "VIDEO" && post.mediaUrl ? <video src={post.mediaUrl} controls className={`h-full min-h-0 w-full bg-black object-contain ${visualEffectClass(post.visualEffect)}`} /> : <p className={`line-clamp-6 whitespace-pre-wrap p-3 text-sm leading-6 ${visualEffectClass(post.visualEffect)}`}>{post.caption}</p>}
+                    <Link href={`/post/${post.id}`} className="shrink-0 border-t border-[#edf0eb] px-3 py-2 text-xs text-[#68716b] hover:text-[#315b46]">{post._count.likes} beğeni · {post._count.comments} yorum · Ayrıntı</Link>
                   </article>)}
                 </div>}
             </section>

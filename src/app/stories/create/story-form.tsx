@@ -18,6 +18,16 @@ export function StoryForm() {
           className="mt-2 block w-full rounded-lg border border-[#dce2dc] bg-white p-3 text-sm file:mr-4 file:rounded-md file:border-0 file:bg-[#edf4e9] file:px-3 file:py-2 file:font-medium file:text-[#315b46]"
         />
       </label>
+      <label className="block text-sm font-medium">
+        Hikâye efekti
+        <select name="visualEffect" defaultValue="NONE" className="mt-2 h-11 w-full rounded-lg border border-[#dce2dc] bg-white px-3">
+          <option value="NONE">Efekt yok</option>
+          <option value="FADE">Yumuşak geçiş</option>
+          <option value="ZOOM">Yakınlaşma</option>
+          <option value="SLIDE">Kayma</option>
+          <option value="BOUNCE">Hafif sıçrama</option>
+        </select>
+      </label>
       <p className="text-xs text-[#788179]">Hikâyen 24 saat sonra akıştan kaldırılır.</p>
       {state.error && <p role="alert" className="text-sm text-[#a53f30]">{state.error}</p>}
       <button

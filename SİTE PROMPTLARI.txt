@@ -1,0 +1,839 @@
+1. Prompt:
+PROJE PROMPTU: Instagram ve TikTok Benzeri Sosyal Medya Platformu
+1. Projenin Amacı
+
+Instagram ve TikTok'tan ilham alan, kullanıcıların hesap oluşturabildiği, profil düzenleyebildiği, fotoğraf ve video içerikleri paylaşabildiği, diğer kullanıcıları takip edebildiği ve içeriklerle etkileşime girebildiği modern bir sosyal medya platformu geliştir.
+
+Bu proje bir sosyal medya yönetim paneli, içerik takvimi veya pazarlama otomasyonu değildir. Doğrudan son kullanıcıların kullandığı bir sosyal medya uygulamasıdır.
+
+Uygulama aşağıdaki temel özellikleri içermelidir:
+
+Kullanıcı kaydı ve giriş sistemi
+Kullanıcı profilleri
+Fotoğraf ve video paylaşımı
+Ana sayfa içerik akışı
+Beğeni ve yorum sistemi
+Kullanıcı takip etme ve takipten çıkma
+Keşfet sayfası
+Kullanıcı ve içerik arama
+Bildirimler
+Kısa video/Reels benzeri içerik akışı
+Hikâye benzeri geçici içerikler
+Kaydedilen gönderiler
+Yapay zekâ destekli mock içerik üretimi
+Kullanıcıya özel ayarlar
+
+Uygulama gerçek bir sosyal medya ürününün temel kullanıcı deneyimini sunmalıdır. Sayfalar arasında geçişler çalışmalı ve kullanıcı etkileşimleri veritabanına kaydedilmelidir.
+
+2. Proje Kapsamı ve Sınırlar
+
+Bu projede aşağıdaki özellikleri geliştirme:
+
+Instagram, TikTok veya başka bir sosyal medya platformunun resmî API'lerine bağlanma.
+Harici sosyal medya hesaplarını bağlama.
+E-posta gönderimi, e-posta doğrulaması veya e-posta tabanlı hesap işlemleri.
+Gerçek yapay zekâ API bağlantısı.
+Güvenlik testi süreçleri.
+Otomasyon testleri veya test paketi hazırlama.
+Dağıtım, sunucuya yükleme veya CI/CD süreçleri.
+
+Bunun yerine uygulamanın tüm temel işlevlerini kendi veritabanı ve sunucu koduyla gerçekleştir.
+
+Yapay zekâ işlevleri mock veri ve yerel kurallarla çalışmalıdır. Mock işlemler gerçek bir yapay zekâ servisine bağlanmamalıdır.
+
+3. Teknoloji Altyapısı
+
+Aşağıdaki teknolojileri kullan:
+
+Frontend: Next.js
+Programlama dili: TypeScript
+Stil: Tailwind CSS
+UI bileşenleri: shadcn/ui
+Veritabanı: MySQL
+ORM: Prisma
+Form doğrulama: Zod
+İkonlar: Lucide
+Grafikler gerekiyorsa: Recharts
+Parola hash işlemleri: Argon2id
+Kimlik doğrulama: Kullanıcı adı ve şifre temelli sunucu tarafı oturum yönetimi
+
+Proje mevcut bir kod tabanında geliştiriliyorsa önce mevcut yapıyı incele. Gereksiz yere çalışan dosyaları silme veya tüm projeyi yeniden oluşturma.
+
+4. Kullanıcı Kaydı ve Giriş
+
+Uygulamada kullanıcılar e-posta adresi olmadan kayıt olmalı ve kullanıcı adlarıyla giriş yapabilmelidir.
+
+Kayıt ekranı
+
+Alanlar:
+
+Kullanıcı adı
+Şifre
+Şifre tekrarı
+
+Kurallar:
+
+Kullanıcı adı 3–30 karakter arasında olmalıdır.
+Yalnızca İngilizce harfler, rakamlar ve alt çizgi (_) kullanılmalıdır.
+Kullanıcı adları büyük/küçük harf duyarsız olarak değerlendirilmelidir.
+Her kullanıcı adı benzersiz olmalıdır.
+Şifre ve şifre tekrarı eşleşmelidir.
+E-posta alanı bulunmamalıdır.
+Başarılı kayıt sonrasında kullanıcı giriş ekranına yönlendirilmelidir.
+Giriş ekranı
+
+Alanlar:
+
+Kullanıcı adı
+Şifre
+
+Kullanıcı adı ve şifre doğruysa oturum açılmalı ve kullanıcı ana sayfaya yönlendirilmelidir.
+
+Formlarda şifre göster/gizle, alan doğrulama, yükleniyor durumu ve anlaşılır hata mesajları bulunmalıdır.
+
+Veritabanında benzersiz kullanıcı adı
+
+Prisma kullanıcı modeli:
+
+model User {
+  id           String   @id @default(uuid()) @db.Uuid
+  username     String   @unique
+  usernameKey  String   @unique
+  passwordHash String
+  displayName  String?
+  bio          String?  @db.VarChar(300)
+  avatarUrl    String?
+  coverUrl     String?
+  isPrivate    Boolean  @default(false)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  posts        Post[]
+  comments     Comment[]
+  likes        Like[]
+  followers    Follow[] @relation("FollowingUser")
+  following    Follow[] @relation("FollowerUser")
+  notifications Notification[]
+}
+
+
+usernameKey, kullanıcı adının sunucu tarafında küçük harfe dönüştürülmesiyle oluşturulmalıdır.
+
+Örneğin Mehmet, MEHMET ve mehmet aynı kullanıcı adı kabul edilmelidir.
+
+Hem username hem usernameKey veritabanında benzersiz olmalıdır. Aynı kullanıcı adıyla birden fazla hesap oluşturulamamalıdır.
+
+Şifreler hiçbir zaman düz metin olarak saklanmamalıdır. E-posta tabanlı kimlik doğrulama geliştirilmemelidir.
+
+5. Ana Sayfa ve İçerik Akışı
+
+Instagram benzeri bir ana sayfa oluştur.
+
+Masaüstünde sol tarafta navigasyon menüsü, orta alanda içerik akışı ve isteğe bağlı sağ tarafta öneriler yer alsın. Mobilde alt navigasyon çubuğu kullanılsın.
+
+Ana sayfada şu alanlar bulunsun:
+
+Kullanıcının takip ettiği hesapların gönderileri
+Gönderi sahibinin profil fotoğrafı ve kullanıcı adı
+Fotoğraf veya video
+Gönderi açıklaması
+Beğeni sayısı
+Yorum sayısı
+Paylaşım tarihi
+Beğen butonu
+Yorum butonu
+Kaydet butonu
+Gönderi seçenekleri menüsü
+
+Gönderiler tarihe göre sıralanabilsin. Kullanıcı içerikleri beğenebilmeli, yorum yapabilmeli, kaydedebilmeli ve gönderi sahibinin profilini açabilmelidir.
+
+Henüz takip edilen kullanıcı yoksa keşfet sayfasına yönlendiren bir boş durum ekranı göster.
+
+6. Kullanıcı Profilleri
+
+Her kullanıcının kendine ait profil sayfası olmalıdır.
+
+Profilde şu alanlar yer alsın:
+
+Profil fotoğrafı
+Kapak fotoğrafı
+Kullanıcı adı
+Görünen ad
+Biyografi
+Gönderi sayısı
+Takipçi sayısı
+Takip edilen kişi sayısı
+Gönderiler
+Videolar
+Kaydedilen gönderiler (yalnızca profil sahibine görünür)
+Profili düzenle butonu
+Takip et veya takipten çık butonu
+
+Kullanıcı kendi profil bilgilerini düzenleyebilmeli ve profil fotoğrafını değiştirebilmelidir.
+
+Profildeki gönderiler ızgara düzeninde gösterilebilmeli ve tıklanınca gönderi ayrıntısına açılmalıdır.
+
+Kullanıcı kendi profilini görüntülediğinde düzenleme seçeneklerini görmeli; başka kullanıcıların profilinde ise takip etme veya takipten çıkma seçenekleri bulunmalıdır.
+
+7. Fotoğraf ve Video Paylaşımı
+
+Kullanıcılar yeni gönderi oluşturabilmelidir.
+
+Gönderi oluşturma ekranında:
+
+Fotoğraf veya video seçme
+İçeriğin ön izlemesini görme
+Gönderi açıklaması yazma
+Hashtag ekleme
+İsteğe bağlı konum metni girme
+Gönderiyi yayınlama
+Gönderi oluşturmayı iptal etme
+
+özellikleri bulunsun.
+
+Fotoğraf ve video dosyaları uygun bir dosya depolama yöntemiyle saklansın. Geliştirme ortamında yerel dosya depolama kullanılabilir.
+
+Yüklenen dosyaların türü ve boyutu sınırlandırılmalı; dosya yolları ve URL'leri veritabanında tutulmalıdır.
+
+Her gönderi oluşturulduğunda ilgili kullanıcıya ait Post kaydı meydana gelmelidir.
+
+Kullanıcı kendi gönderisini silebilmeli ve açıklamasını düzenleyebilmelidir.
+
+Başka bir kullanıcının gönderisini düzenleme yetkisi verilmemelidir.
+
+8. Veritabanı Modelleri
+
+Aşağıdaki temel modelleri Prisma ile oluştur:
+
+User
+
+Kullanıcı hesabı, profil bilgileri ve kimlik doğrulama verileri.
+
+Post
+
+Alanlar:
+
+id
+userId
+caption
+mediaUrl
+mediaType
+thumbnailUrl
+createdAt
+updatedAt
+
+mediaType, fotoğraf ve video ayrımını belirtmelidir.
+
+Comment
+
+Alanlar:
+
+id
+postId
+userId
+content
+parentId (isteğe bağlı, yanıtlar için)
+createdAt
+updatedAt
+
+Yorumlar gönderilere bağlı olmalı ve yanıt sistemi desteklenebilmelidir.
+
+Like
+
+Alanlar:
+
+id
+userId
+postId
+createdAt
+
+Aynı kullanıcı aynı gönderiyi birden fazla kez beğenememelidir. userId ve postId birlikte benzersiz olmalıdır.
+
+Follow
+
+Alanlar:
+
+id
+followerId
+followingId
+createdAt
+
+Aynı kullanıcı aynı hesabı birden fazla kez takip edememelidir. Kullanıcının kendisini takip etmesi engellenmelidir.
+
+SavedPost
+
+Alanlar:
+
+id
+userId
+postId
+createdAt
+
+Bir kullanıcı aynı gönderiyi yalnızca bir kez kaydedebilmelidir. Kaydedilen gönderiler sadece ilgili kullanıcıya gösterilmelidir.
+
+Notification
+
+Alanlar:
+
+id
+userId
+actorId
+type
+postId
+commentId
+isRead
+createdAt
+
+Bildirim türleri beğeni, yorum, takip ve yorum yanıtı gibi olayları içerebilir.
+
+Story
+
+Alanlar:
+
+id
+userId
+mediaUrl
+mediaType
+createdAt
+expiresAt
+
+Hikâyeler oluşturulma zamanından 24 saat sonra geçersiz olmalıdır. Süresi dolmuş hikâyeler kullanıcı arayüzünde gösterilmemelidir.
+
+StoryView
+
+Alanlar:
+
+id
+storyId
+viewerId
+createdAt
+
+Aynı kullanıcının aynı hikâyeyi görüntülemesi birden fazla kayıt oluşturmamalıdır.
+
+MockContent
+
+Alanlar:
+
+id
+userId
+topic
+tone
+contentType
+generatedCaption
+suggestedHashtags
+createdAt
+
+Bu model mock içerik üretimi geçmişini saklamak için kullanılabilir.
+
+Tüm modellerin ilişkilerini, yabancı anahtarlarını ve gerekli benzersiz kısıtlamalarını oluştur. Kullanıcıların birbirlerinin özel verilerine erişmemesini sağlayacak sunucu tarafı yetkilendirme kontrolleri ekle.
+
+9. Beğeni, Yorum ve Takip Sistemi
+Beğeni
+Kullanıcı gönderiyi beğenebilmeli.
+Tekrar tıkladığında beğeniyi kaldırabilmeli.
+Beğeni sayısı güncellenmeli.
+Gönderi sahibi için bildirim oluşturulmalı.
+Yorum
+Kullanıcı gönderiye yorum yapabilmeli.
+Yorumları listeleyebilmeli.
+Yorum sahibi kendi yorumunu silebilmeli.
+Yanıtlar desteklenmeli.
+Yorum sayısı güncellenmeli.
+Yeni yorum için bildirim oluşturulmalı.
+Takip
+Kullanıcı başka bir hesabı takip edebilmeli.
+Takibi bırakabilmeli.
+Takipçi ve takip edilen sayıları güncellenmeli.
+Yeni takip için bildirim oluşturulmalı.
+Kullanıcının kendisini takip etmesi engellenmeli.
+
+Profil gizliliği açık olan hesaplar için takip isteği sistemi ekle. Takip isteği kabul edilmeden özel içerikler gösterilmemelidir.
+
+10. Keşfet Sayfası
+
+Instagram'ın Keşfet sayfasına benzer bir bölüm oluştur.
+
+Bu sayfada:
+
+Popüler gönderiler
+Yeni gönderiler
+Önerilen kullanıcılar
+Trend hashtag'ler
+Fotoğraf ve video ızgarası
+Gönderi ayrıntı penceresi
+
+bulunsun.
+
+İçerikler başlangıçta veritabanındaki beğeni, yorum ve tarih bilgilerine göre basit bir sıralama algoritmasıyla gösterilebilir.
+
+Gerçek bir öneri yapay zekâsı geliştirme. Basit ve anlaşılır kurallar kullan.
+
+Kullanıcı bir gönderiye tıkladığında ayrıntı görünümü açılmalı ve gönderiyle etkileşime girebilmelidir.
+
+11. Arama Sistemi
+
+Kullanıcılar aşağıdakileri arayabilmelidir:
+
+Kullanıcı adı
+Görünen ad
+Hashtag
+Gönderi açıklamasındaki kelimeler
+
+Arama sonuçları kategorilere ayrılmalıdır:
+
+Kişiler
+Gönderiler
+Hashtag'ler
+
+Arama alanında sonuçlar gösterilsin ve sonuç seçildiğinde ilgili profil veya gönderi açılabilsin.
+
+Arama işlemi gerçek veritabanı verileri üzerinde çalışmalıdır.
+
+12. Reels ve Kısa Video Akışı
+
+TikTok ve Instagram Reels benzeri dikey bir video akışı oluştur.
+
+Özellikler:
+
+Dikey video kartları
+Ekrana uygun video boyutları
+Otomatik oynatma ve duraklatma
+Beğeni
+Yorum
+Kullanıcı profiline gitme
+Gönderi açıklaması
+Hashtag gösterimi
+Video akışında bir sonraki içeriğe geçiş
+
+Video dosyaları HTML5 video oynatıcısıyla gösterilmelidir.
+
+Masaüstünde video merkezli bir düzen, mobilde ise tam ekran veya ekrana yakın bir dikey görünüm kullan.
+
+Video dosyası bulunmadığında bozuk oynatıcı yerine düzgün bir ön izleme veya boş durum göster.
+
+13. Hikâye Sistemi
+
+Kullanıcılar 24 saat sonra sona eren hikâyeler paylaşabilmelidir.
+
+Özellikler:
+
+Hikâye oluşturma
+Fotoğraf veya video yükleme
+Takip edilen kullanıcıların hikâyelerini görüntüleme
+Hikâyeler arasında ileri ve geri geçiş
+Hikâye sahibinin profiline gitme
+Hikâye görüntülenme kaydı
+Süresi dolmuş hikâyeleri gizleme
+
+Kullanıcı kendi hikâyesini silebilmeli ve kendi hikâyesini kimlerin görüntülediğini görebilmelidir.
+
+Hikâye süresi dolduğunda kayıtların otomatik olarak silinmesi zorunlu değildir; ancak uygulama sorguları süresi dolan hikâyeleri kesinlikle göstermemelidir.
+
+14. Yapay Zekâ Mock İçerik Üretimi
+
+Gerçek yapay zekâ API'si kullanmadan, yapay zekâ içerik asistanı görünümünde çalışan bir mock sistem geliştir.
+
+Bu özellik, kullanıcının gönderi açıklaması hazırlamasına yardımcı olmalıdır.
+
+Kullanıcıdan alınacak bilgiler
+Konu
+İçerik türü
+Hedef kitle
+İletişim tonu
+İçerik dili
+İsteğe bağlı anahtar kelimeler
+
+İçerik türleri:
+
+Instagram gönderisi
+Kısa video açıklaması
+Hikâye metni
+TikTok tarzı kısa video açıklaması
+Motivasyon içeriği
+Eğitici içerik
+Eğlenceli içerik
+Ürün veya hizmet tanıtımı
+
+İletişim tonları:
+
+Samimi
+Profesyonel
+Eğlenceli
+Bilgilendirici
+İlham verici
+Minimalist
+Mock üretim mantığı
+
+Kullanıcı formu doldurduğunda uygulama, önceden hazırlanmış metin şablonlarını ve kelime havuzlarını kullanarak içerik oluşturmalıdır.
+
+Mock sistem:
+
+Girilen konuyu içeriğe dahil etmeli.
+Seçilen tonu dikkate almalı.
+Seçilen içerik türüne uygun bir metin üretmeli.
+İçeriğe uygun hashtag önerileri sunmalı.
+Alternatif metinler oluşturabilmeli.
+Yeniden üret butonuyla farklı bir sonuç verebilmeli.
+Üretilen metni düzenlenebilir bir alanda göstermeli.
+İçeriği taslak olarak kaydedebilmeli.
+İstenirse yeni bir gönderi oluşturma ekranına aktarabilmelidir.
+
+Mock sistem tamamen yerel kodla çalışmalıdır. Harici API çağrısı yapılmamalıdır.
+
+Kullanıcıya oluşturulan içeriğin mock içerik üretim sistemi tarafından hazırlandığı belirtilmelidir. Gerçek bir dil modeli kullanılıyormuş gibi yanlış bir izlenim verilmemelidir.
+
+Örnek:
+
+Girdi:
+
+Konu: Kahve
+Tür: Instagram gönderisi
+Ton: Samimi
+Dil: Türkçe
+
+Örnek çıktı:
+
+“Güne güzel bir başlangıç yapmak için bir fincan kahvenin yeri bambaşka. ☕ Küçük molaların tadını çıkar ve kendine zaman ayır!
+
+#Kahve #GünlükRutin #KahveKeyfi”
+
+Bu metin sadece örnektir. Uygulama farklı konular ve tonlar için birden fazla şablon kullanmalıdır.
+
+Mock içerik üretim kodunu ayrı bir servis modülünde tut. Böylece gelecekte istenirse gerçek bir yapay zekâ sağlayıcısına geçiş yapılabilsin.
+
+15. Bildirim Merkezi
+
+Uygulama içi bildirim merkezi oluştur.
+
+Bildirim türleri:
+
+Birisi seni takip etti.
+Birisi gönderini beğendi.
+Birisi gönderine yorum yaptı.
+Birisi yorumuna yanıt verdi.
+Takip isteğin kabul edildi.
+Sana yeni bir takip isteği geldi.
+
+Özellikler:
+
+Bildirimleri listeleme
+Okunmamış bildirimleri belirtme
+Bildirimi okundu olarak işaretleme
+Tüm bildirimleri okundu olarak işaretleme
+Bildirime tıklayınca ilgili profil veya gönderiye gitme
+
+E-posta bildirimi veya harici bildirim sağlayıcısı kullanma. Bildirimler uygulama içinde ve veritabanında yönetilmelidir.
+
+16. Kullanıcı Ayarları
+
+Kullanıcıların hesaplarını düzenleyebileceği bir ayarlar sayfası oluştur.
+
+Ayarlar:
+
+Görünen adı değiştirme
+Kullanıcı biyografisini düzenleme
+Profil fotoğrafını değiştirme
+Kapak fotoğrafını değiştirme
+Şifre değiştirme
+Hesabı herkese açık veya özel yapma
+Oturumu kapatma
+Hesabı silme
+
+Kullanıcı adı değiştirme özelliği eklenirse benzersizlik kuralları yeniden uygulanmalıdır.
+
+Hesap silme işlemi, ilgili kullanıcının içerik ve ilişkilerinin nasıl ele alınacağını belirleyen tutarlı bir veri silme politikasıyla gerçekleştirilmelidir.
+
+17. Tasarım ve Kullanıcı Deneyimi
+
+Modern, özgün ve profesyonel bir sosyal medya arayüzü tasarla.
+
+Tasarım Instagram ve TikTok'tan esinlenebilir ancak birebir kopya olmamalıdır.
+
+Masaüstü görünümü
+
+Sol navigasyon menüsü:
+
+Ana Sayfa
+Keşfet
+Reels
+Mesajlar yerine şimdilik kapsam dışı veya devre dışı bir bağlantı gösterilebilir
+Bildirimler
+Gönderi Oluştur
+Profil
+Ayarlar
+
+Orta alan:
+
+Ana içerik akışı
+Gönderiler
+Hikâye şeridi
+
+Sağ alan:
+
+Önerilen kullanıcılar
+Trend hashtag'ler
+Keşfedilecek içerikler
+Mobil görünümü
+
+Alt navigasyon çubuğunda:
+
+Ana Sayfa
+Keşfet
+Oluştur
+Reels
+Profil
+
+bulunsun.
+
+Genel tasarım ilkeleri
+Responsive tasarım
+Açık ve koyu tema
+Modern tipografi
+Tutarlı boşluklar
+Yuvarlatılmış kartlar
+Akıcı geçişler
+Görsel ağırlıklı içerik sunumu
+Kullanıcı dostu boş durumlar
+Hata ve başarı bildirimleri
+Mobilde rahat dokunma alanları
+
+Arayüz sadece statik HTML veya görsellerden oluşmamalıdır. Tüm ana butonlar ve etkileşimli alanlar çalışmalıdır.
+
+18. Sayfa ve Rota Yapısı
+
+Aşağıdaki sayfaları oluştur:
+
+/login — Giriş
+/register — Kayıt
+/ — Ana sayfa ve içerik akışı
+/explore — Keşfet
+/reels — Kısa video akışı
+/create — Yeni gönderi
+/post/[id] — Gönderi ayrıntısı
+/profile/[username] — Kullanıcı profili
+/notifications — Bildirimler
+/search — Arama sonuçları
+/saved — Kaydedilen gönderiler
+/stories/create — Hikâye oluşturma
+/settings — Hesap ayarları
+/ai-studio — Mock içerik üretimi
+
+Oturum açmamış kullanıcılar korumalı sayfalara erişememelidir. Gerekli durumlarda giriş ekranına yönlendirilmelidir.
+
+19. Örnek Veri ve İlk Açılış
+
+Uygulama ilk açıldığında boş bir sosyal medya deneyimi oluşmaması için isteğe bağlı bir seed mekanizması oluştur.
+
+Örnek veriler:
+
+Birkaç demo kullanıcı
+Profil fotoğrafları
+Fotoğraf gönderileri
+Kısa video örnekleri
+Beğeniler
+Yorumlar
+Takip ilişkileri
+Hashtag'ler
+
+Demo verileri açıkça örnek içerik olarak tanımlanmalıdır.
+
+Örnek kullanıcılar gerçek kullanıcı gibi gösterilmemeli; demo veriler ile kullanıcıların gerçek oluşturduğu içerikler ayrılmalıdır.
+
+Uygulama demo verileri olmadan da boş durum ekranlarıyla düzgün çalışmalıdır.
+
+20. Uygulama Davranışları ve İş Kuralları
+Beğeni sayıları veritabanındaki gerçek beğeni kayıtlarından hesaplanmalıdır.
+Yorum sayıları gerçek yorum kayıtlarından hesaplanmalıdır.
+Takipçi sayıları gerçek takip ilişkilerinden hesaplanmalıdır.
+Kullanıcı yalnızca kendi gönderisini düzenleyebilmeli veya silebilmelidir.
+Kullanıcı yalnızca kendi kaydedilen gönderilerini görebilmelidir.
+Özel profillerin gönderileri yetkisiz kullanıcılara gösterilmemelidir.
+Kullanıcı aynı gönderiyi iki kez beğenememelidir.
+Kullanıcı aynı hesabı birden fazla kez takip edememelidir.
+Süresi dolmuş hikâyeler gösterilmemelidir.
+Tüm kullanıcı işlemleri oturum açmış kullanıcının kimliğiyle ilişkilendirilmelidir.
+Kullanıcıların verileri birbirinden ayrılmalıdır.
+İçerik oluşturma ve etkileşim işlemleri yalnızca arayüz durumunu değil, kalıcı verileri de güncellemelidir.
+Harici sosyal medya API'si kullanılmamalıdır.
+Gerçek yapay zekâ API'si kullanılmamalıdır.
+21. Geliştirme Sırası
+
+Projeyi aşağıdaki sırayla oluştur:
+
+Proje iskeleti ve tasarım sistemi.
+Veritabanı şeması ve kullanıcı kayıt/giriş sistemi.
+Profil sayfaları ve profil düzenleme.
+Fotoğraf ve video gönderileri.
+Ana sayfa içerik akışı.
+Beğeni, yorum ve takip sistemleri.
+Keşfet ve arama sayfaları.
+Reels benzeri video akışı.
+Hikâye sistemi.
+Bildirim merkezi.
+Mock yapay zekâ içerik üretimi.
+Kullanıcı ayarları ve arayüz iyileştirmeleri.
+Demo veri oluşturma ve boş durumların düzenlenmesi.
+
+Her modülü geliştirirken mevcut uygulamaya entegre et. Sadece dosya listesi veya örnek kod verme; sayfaları, bileşenleri, veritabanı modellerini ve sunucu işlemlerini gerçekten oluştur.
+
+22. Son Talimat
+
+Bu proje doğrudan kullanıcıların içerik paylaştığı ve birbirleriyle etkileşime girdiği bir sosyal medya platformu olacaktır.
+
+Bir yönetim otomasyonu, içerik takvimi aracı veya sosyal medya hesaplarını birbirine bağlayan bir SaaS ürünü geliştirme.
+
+Öncelik sırası:
+
+Kullanıcı adıyla kayıt ve giriş.
+Kullanıcı profilleri.
+Gönderi paylaşımı.
+Ana sayfa akışı.
+Beğeni, yorum ve takip.
+Keşfet ve arama.
+Reels ve hikâyeler.
+Uygulama içi bildirimler.
+Mock yapay zekâ içerik üretimi.
+Responsive ve profesyonel arayüz.
+
+Kapsam dışında belirtilen özellikleri ekleme. Gerçek sosyal medya API bağlantısı, e-posta gönderimi, gerçek yapay zekâ API'si, güvenlik testleri, otomasyon testleri ve dağıtım geliştirme.
+
+Tüm ana kullanıcı işlemlerini çalışan, veritabanıyla entegre bir uygulama olarak oluştur. Kullanıcı arayüzünde henüz desteklenmeyen özellikleri çalışıyormuş gibi gösterme.Veritabanı ve Teknoloji Altyapısı
+Frontend: Next.js
+Programlama dili: TypeScript
+Stil: Tailwind CSS
+UI bileşenleri: shadcn/ui
+Veritabanı: MySQL 8.0 veya üzeri
+ORM: Prisma
+Form doğrulama: Zod
+İkonlar: Lucide
+Parola hash işlemleri: Argon2id
+Kimlik doğrulama: Kullanıcı adı ve şifre temelli sunucu tarafı oturum yönetimi
+MySQL ve Prisma Kuralları
+Veritabanı olarak MySQL kullan. PostgreSQL'e özgü veri tipleri, fonksiyonlar, operatörler veya SQL sözdizimi kullanma.
+Prisma şemasında MySQL sağlayıcısını tanımla ve bağlantıyı DATABASE_URL ortam değişkeni üzerinden yapılandır.
+Kullanıcı, gönderi, yorum, beğeni, takip, bildirim, hikâye ve kaydedilen gönderi modellerini MySQL ile uyumlu oluştur.
+MySQL'de desteklenmeyen PostgreSQL String[] gibi alanları kullanma. Hashtag listeleri gibi çoklu değerler için ilişkisel tablolar veya uygun JSON alanları tercih et.
+Benzersiz kullanıcı adı için hem username hem de normalize edilmiş usernameKey alanlarında veritabanı seviyesinde UNIQUE kısıtlaması oluştur.
+Kullanıcı adı karşılaştırmalarında büyük/küçük harf duyarsız davranışı uygulama ve veritabanı düzeyinde tutarlı şekilde sağla. MySQL collation ayarlarına güvenmek yerine usernameKey değerini sunucu tarafında normalize ederek üret.
+Beğeni, takip, kayıt ve hikâye görüntüleme ilişkilerinde yinelenen kayıtları önlemek için uygun birleşik benzersiz indeksler oluştur.
+İlişkilerde yabancı anahtarları, indeksleri ve silme davranışlarını tanımla.
+Prisma migration dosyalarını MySQL ile uyumlu üret.
+Veritabanı bağlantı bilgilerini kaynak koduna yazma. .env.example içinde örnek DATABASE_URL formatını göster.
+Prisma yapılandırması
+datasource db {
+  provider = "mysql"
+  url      = env("DATABASE_URL")
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+
+Örnek bağlantı formatı:
+
+DATABASE_URL="mysql://USER:PASSWORD@localhost:3306/social_platform"
+
+MySQL veri modeli kuralları
+Kullanıcı kimliklerinde UUID kullanılacaksa MySQL ile uyumlu bir UUID saklama yaklaşımı seç.
+User, Post, Comment, Like, Follow, SavedPost, Notification, Story, StoryView ve MockContent modellerini MySQL'e uygun biçimde oluştur.
+Hashtag'leri ayrı bir Hashtag modeli ve gönderilerle ilişkili bir bağlantı modeli üzerinden yönetmeyi tercih et.
+Fotoğraf ve video dosyalarının kendisini veritabanına yüklemek yerine dosya konumlarını veya URL'lerini sakla.
+Uzun gönderi açıklamaları ve yorumlar için uygun metin alanlarını kullan.
+Tarih alanlarını tutarlı biçimde sakla ve uygulamada saat dilimi dönüşümlerini doğru yönet.
+Veritabanı sorgularını Prisma üzerinden gerçekleştir; gerekli durumlar dışında ham SQL kullanma.
+
+Mevcut sosyal medya platformunun bütün işlevleri MySQL üzerinde çalışmalıdır. PostgreSQL'e özgü örnek şemaları doğrudan kopyalama; bütün modelleri ve ilişkileri MySQL uyumluluğuna göre düzenle.
+
+2.Prompt:
+ İlgili proje için gerekli backend kütüphane ve yazılımlarını indir ve kur.
+
+ 3.Prompt:
+ "sosyalmedya" ismiyle veritabanı bağlantısını oluşturup, kurulumunu yapar mısın?
+
+ 4.Prompt:
+ "Autopilot recovered from a request error" Bu uyarıyı alınca, bunu yazdık: devam et ve mysql tarafında sosyalmedya veritabanı olarak görünsün veritabanı 
+
+ 5.Prompt:
+ sosyalmedya veritabanı içerisine ilgili tablo ve şemayı da oluştur ve proje veritabanını kur
+
+ 6.Prompt:
+Tarayıcı görüntüleyemeyince bunu yazdık: Projeyi build et ve çalıştır
+
+7.Prompt
+Build başarılı oldu. Next.js geliştirme sunucusu çalışıyor ve HTTP 200 yanıtı veriyor: 
+yine çalışmadı prompta çalışmıyor yazdık
+
+8.Prompt:
+
+F12 ye basınca gelen error ları prompta yazdık
+Aşağıdaki errorları düzelt ve örnek bir kullanıcı da ekle ve kullanıcı adı ve şifresini yaz: forward-logs-shared.ts:120 Download the React DevTools for a better development experience: https://react.dev/link/react-devtools
+:3000/__nextjs_font/geist-latin.woff2:1  GET http://127.0.0.1:3000/__nextjs_font/geist-latin.woff2 net::ERR_ABORTED 403 (Forbidden)
+web-socket.ts:60 WebSocket connection to 'ws://127.0.0.1:3000/_next/hmr?id=wkYBtFJp0GYPkguF44bcy' failed: Error during WebSocket handshake: net::ERR_INVALID_HTTP_RESPONSE
+init @ web-socket.ts:60
+createWebSocket @ web-socket.ts:178
+hydrate @ app-index.tsx:358
+(anonymous) @ app-next-turbopack.ts:14
+(anonymous) @ app-bootstrap.ts:79
+loadScriptsInSequence @ app-bootstrap.ts:23
+appBootstrap @ app-bootstrap.ts:61
+(anonymous) @ app-next-turbopack.ts:11
+(anonymous) @ hmr-runtime.ts:652
+runModuleExecutionHooks @ dev-base.ts:214
+instantiateModuleShared @ hmr-runtime.ts:650
+instantiateModule @ dev-base.ts:182
+getOrInstantiateRuntimeModule @ dev-base.ts:102
+registerChunk @ runtime-backend-dom.ts:68
+web-socket.ts:60 WebSocket connection to 'ws://127.0.0.1:3000/_next/hmr?id=wkYBtFJp0GYPkguF44bcy' failed: Error during WebSocket handshake: net::ERR_INVALID_HTTP_RESPONSE
+init @ web-socket.ts:60
+web-socket.ts:60 WebSocket connection to 'ws://127.0.0.1:3000/_next/hmr?id=wkYBtFJp0GYPkguF44bcy' failed: Error during WebSocket handshake: net::ERR_INVALID_HTTP_RESPONSE
+init @ web-socket.ts:60
+web-socket.ts:60 WebSocket connection to 'ws://127.0.0.1:3000/_next/hmr?id=wkYBtFJp0GYPkguF44bcy' failed: Error during WebSocket handshake: net::ERR_INVALID_HTTP_RESPONSE
+init @ web-socket.ts:60
+web-socket.ts:60 WebSocket connection to 'ws://127.0.0.1:3000/_next/hmr?id=wkYBtFJp0GYPkguF44bcy' failed: Error during WebSocket handshake: net::ERR_INVALID_HTTP_RESPONSE
+init @ web-socket.ts:60
+web-socket.ts:60 WebSocket connection to 'ws://127.0.0.1:3000/_next/hmr?id=wkYBtFJp0GYPkguF44bcy' failed: Error during WebSocket handshake: net::ERR_INVALID_HTTP_RESPONSE
+init @ web-socket.ts:60
+forward-logs-shared.ts:120 Download the React DevTools for a better development experience: https://react.dev/link/react-devtools
+__nextjs_font/geist-latin.woff2:1  GET http://127.0.0.1:3000/__nextjs_font/geist-latin.woff2 net::ERR_ABORTED 403 (Forbidden)
+web-socket.ts:60 WebSocket connection to 'ws://127.0.0.1:3000/_next/hmr?id=cfpCvDzRH3cwrQKUsExBK' failed: Error during WebSocket handshake: net::ERR_INVALID_HTTP_RESPONSE
+init @ web-socket.ts:60
+createWebSocket @ web-socket.ts:178
+hydrate @ app-index.tsx:358
+(anonymous) @ app-next-turbopack.ts:14
+(anonymous) @ app-bootstrap.ts:79
+loadScriptsInSequence @ app-bootstrap.ts:23
+appBootstrap @ app-bootstrap.ts:61
+(anonymous) @ app-next-turbopack.ts:11
+(anonymous) @ hmr-runtime.ts:652
+runModuleExecutionHooks @ dev-base.ts:214
+instantiateModuleShared @ hmr-runtime.ts:650
+instantiateModule @ dev-base.ts:182
+getOrInstantiateRuntimeModule @ dev-base.ts:102
+registerChunk @ runtime-backend-dom.ts:68
+web-socket.ts:60 WebSocket connection to 'ws://127.0.0.1:3000/_next/hmr?id=cfpCvDzRH3cwrQKUsExBK' failed: Error during WebSocket handshake: net::ERR_INVALID_HTTP_RESPONSE
+init @ web-socket.ts:60
+
+9.Prompt:
+Kullanıcılar text,resim ve vido olarak gönderi paylaşabilsinler,
+ 1 gün sürecek hikaye yükleme, arkadaş ekleme,arama,gönderi ve 
+ hikaye paylaşıldığında diğer kullanıcıların görmesi ve 
+ her kullanıcıya ait profil sayfası özelliklerini de ekler misin?
+  Bu özelliklere göre databasei ve frontendin de ayarlamalarını ve değişikliklerini gerçekleştir.
+ 10.Prompt:
+  Paylaşılan gönderilerde kullanıcı, paylaştığı gönderinin herkes tarafından görünmesi ve sadece
+takipçisi tarafından görünmesi seçeneklerine sahip olsun, akışta diğer kullanıcının profiline
+tıklanarak gidilebilsin, kullanıcı ve diğer kullanıcılarda takip edilen ve takipçi 
+kullanıcıları da tıklanarak görüntülenebilsin, reels ve hikaye ekleyebilsin; reels ve 
+hikayelere isterse animasyon ekleyebilsin ve bu gönderileri ui ux dizaynı instagram ve tiktok
+gibi göstersin. Platformun ismi de "Gültepe Sosyal Medya" olsun.
+
+ 11.Prompt:
+ Kullanıcılar birbirlerini eklediklerinde onaylama ve reddetme de olsun ve bunları bildirim 
+ sekmesinde göstersin,gönderiler herkese açık paylaşılmadıysa eğer kullanıcı takip isteğini
+ onaylarsa görüntüleyebilsin,gönderilerde ve reels tarafında beğeni ve yorum yapılabilsin 
+ve eğer bu gönderi ve reelsler herkese açıksa beğenenler,beğeni sayısı ve yorumlar  herkes 
+tarafından görüntülenebilsin,herkese açık paylaşılmadıysa sadece takipçileri tarafından
+ görüntülenebilsin. Reels sayfasında + butonu ile reels ekleme de yer alsın. 
+Frontend ve ux-ui kısmı uyumlu,modern ve animasyonlar,renklerle modernize edilmiş olsun.
+Veritabanında da ilgili özelliklerde eksiklikler varsa eklensin.

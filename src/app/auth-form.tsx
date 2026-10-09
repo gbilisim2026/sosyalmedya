@@ -24,7 +24,7 @@ export function AuthForm({ mode, registered = false }: AuthFormProps) {
           <div className="absolute -right-20 top-28 h-64 w-64 rounded-full border-[34px] border-[#bfe7a4]/20" />
           <div className="absolute -bottom-24 -left-12 h-72 w-72 rounded-full bg-[#d8efbd]" />
           <Link href="/" className="relative z-10 text-xl font-bold tracking-tight">
-            sosyal<span className="text-[#c4eea7]">.</span>
+            Gültepe <span className="text-[#c4eea7]">Sosyal Medya</span>
           </Link>
           <div className="relative z-10 max-w-sm pb-5">
             <p className="mb-4 text-sm font-semibold uppercase tracking-[0.16em] text-[#c4eea7]">
@@ -41,7 +41,7 @@ export function AuthForm({ mode, registered = false }: AuthFormProps) {
 
         <div className="flex min-h-[640px] flex-col justify-center px-7 py-10 sm:px-12">
           <Link href="/" className="mb-12 text-lg font-bold tracking-tight md:hidden">
-            sosyal<span className="text-[#e36650]">.</span>
+            Gültepe <span className="text-[#e36650]">Sosyal Medya</span>
           </Link>
           <div className="mb-8">
             <p className="mb-2 text-sm font-medium text-[#64806f]">

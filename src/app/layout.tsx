@@ -13,7 +13,7 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Sosyalmedya",
+  title: "Gültepe Sosyal Medya",
   description: "Fotoğraf ve video paylaşım topluluğu",
 };
 

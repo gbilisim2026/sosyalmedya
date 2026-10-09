@@ -1,8 +1,11 @@
 import Link from "next/link";
-import { ArrowRight, Camera, Sparkles } from "lucide-react";
+import { ArrowRight, Camera, Plus, Sparkles } from "lucide-react";
 import { SiteHeader } from "@/app/site-header";
 import { getCurrentUser } from "@/lib/session";
 import { prisma } from "@/lib/prisma";
+import { visiblePostsWhere } from "@/lib/visibility";
+import { visualEffectClass } from "@/lib/effects";
+import { PostEngagement } from "@/app/post-engagement";
 
 export const instant = false;
 
@@ -14,7 +17,7 @@ export default async function Home() {
       <main className="min-h-screen bg-[#f4f6f2] px-5 py-8 text-[#202522] sm:px-10">
         <header className="mx-auto flex max-w-6xl items-center justify-between">
           <Link href="/" className="text-xl font-bold tracking-tight">
-            sosyal<span className="text-[#e36650]">.</span>
+            Gültepe <span className="text-[#e36650]">Sosyal Medya</span>
           </Link>
           <Link href="/login" className="text-sm font-semibold text-[#315b46] hover:underline">
             Giriş yap
@@ -71,18 +74,22 @@ export default async function Home() {
 
   const [posts, stories] = await Promise.all([
     prisma.post.findMany({
-      where: {
-        OR: [
-          { userId: currentUser.id },
-          { user: { isPrivate: false } },
-          { user: { followers: { some: { followerId: currentUser.id } } } },
-        ],
-      },
+      where: visiblePostsWhere(currentUser.id),
       orderBy: { createdAt: "desc" },
       take: 20,
       include: {
         user: { select: { username: true, displayName: true, avatarUrl: true } },
         _count: { select: { likes: true, comments: true } },
+        likes: {
+          take: 6,
+          orderBy: { createdAt: "desc" },
+          select: { user: { select: { username: true, displayName: true } } },
+        },
+        comments: {
+          take: 5,
+          orderBy: { createdAt: "desc" },
+          select: { id: true, content: true, user: { select: { username: true, displayName: true } } },
+        },
       },
     }),
     prisma.story.findMany({
@@ -98,6 +105,12 @@ export default async function Home() {
       take: 20,
     }),
   ]);
+  const likedPostIds = new Set(
+    (await prisma.like.findMany({
+      where: { userId: currentUser.id, postId: { in: posts.map((post) => post.id) } },
+      select: { postId: true },
+    })).map((like) => like.postId),
+  );
 
   return (
     <main className="min-h-screen bg-[#f4f6f2] text-[#202522]">
@@ -106,14 +119,17 @@ export default async function Home() {
         <div>
           <div className="mb-6">
             <p className="text-sm font-medium text-[#64806f]">Merhaba, @{currentUser.username}</p>
-            <h1 className="mt-1 text-2xl font-semibold tracking-tight">Akışın</h1>
+            <div className="mt-1 flex items-center justify-between gap-3">
+              <h1 className="text-2xl font-semibold tracking-tight">Akışın</h1>
+              <Link href="/stories/create" className="inline-flex items-center gap-2 rounded-lg border border-[#dce2dc] bg-white px-3 py-2 text-xs font-semibold text-[#315b46] hover:bg-[#edf4e9]"><Plus size={15} /> Hikâye ekle</Link>
+            </div>
           </div>
           {stories.length > 0 && (
             <section aria-label="Aktif hikâyeler" className="mb-7 overflow-x-auto rounded-2xl border border-[#e1e6df] bg-white p-4">
               <div className="flex w-max gap-4">
                 {stories.map((story) => (
                   <Link key={story.id} href={`/stories/${story.id}`} className="flex w-16 flex-col items-center gap-2">
-                    <span className="grid size-14 place-items-center rounded-full bg-gradient-to-br from-[#e36650] via-[#e7aa58] to-[#4f8266] p-[2px]">
+                    <span className={`grid size-14 place-items-center rounded-full bg-gradient-to-br from-[#e36650] via-[#e7aa58] to-[#4f8266] p-[2px] ${visualEffectClass(story.visualEffect)}`}>
                       <span className="grid size-full place-items-center rounded-full border-2 border-white bg-[#edf4e9] text-sm font-semibold text-[#315b46]">
                         {(story.user.displayName ?? story.user.username).slice(0, 1).toUpperCase()}
                       </span>
@@ -142,27 +158,36 @@ export default async function Home() {
                     <span className="grid size-10 shrink-0 place-items-center rounded-full bg-[#e9efe7] text-sm font-semibold text-[#315b46]">
                       {(post.user.displayName ?? post.user.username).slice(0, 1).toUpperCase()}
                     </span>
-                    <div className="min-w-0">
+                    <Link href={`/profile/${encodeURIComponent(post.user.username)}`} className="min-w-0 hover:text-[#315b46]">
                       <p className="truncate text-sm font-semibold">{post.user.displayName ?? post.user.username}</p>
                       <p className="text-xs text-[#788179]">@{post.user.username}</p>
-                    </div>
+                    </Link>
+                    <span className="ml-auto rounded-full bg-[#f1f4ef] px-2.5 py-1 text-[10px] font-medium text-[#68716b]">
+                      {post.visibility === "PUBLIC" ? "Herkes" : "Takipçiler"}{post.isReel ? " · Reels" : ""}
+                    </span>
                     <time className="ml-auto text-xs text-[#788179]">
                       {post.createdAt.toLocaleDateString("tr-TR")}
                     </time>
                   </header>
                   {post.mediaType === "VIDEO" && post.mediaUrl ? (
-                    <video className="max-h-[680px] w-full bg-black object-contain" src={post.mediaUrl} controls />
+                    <video className={`max-h-[680px] w-full bg-black object-contain ${visualEffectClass(post.visualEffect)}`} src={post.mediaUrl} controls />
                   ) : post.mediaType === "PHOTO" && post.mediaUrl ? (
                     // eslint-disable-next-line @next/next/no-img-element
-                    <img className="max-h-[680px] w-full bg-[#f0f2ef] object-contain" src={post.mediaUrl} alt={post.caption ?? "Gönderi görseli"} />
+                    <img className={`max-h-[680px] w-full bg-[#f0f2ef] object-contain ${visualEffectClass(post.visualEffect)}`} src={post.mediaUrl} alt={post.caption ?? "Gönderi görseli"} />
                   ) : (
-                    <div className="whitespace-pre-wrap px-5 py-8 text-lg leading-8">{post.caption}</div>
+                    <div className={`whitespace-pre-wrap px-5 py-8 text-lg leading-8 ${visualEffectClass(post.visualEffect)}`}>{post.caption}</div>
                   )}
                   <div className="space-y-2 p-4">
-                    <p className="text-sm font-semibold">{post._count.likes} beğeni</p>
                     {post.caption && post.mediaType !== "TEXT" && <p className="text-sm leading-6">{post.caption}</p>}
-                    <p className="text-xs text-[#788179]">{post._count.comments} yorum</p>
                   </div>
+                  <PostEngagement
+                    postId={post.id}
+                    likesCount={post._count.likes}
+                    commentsCount={post._count.comments}
+                    likedByCurrentUser={likedPostIds.has(post.id)}
+                    likers={post.likes.map((like) => like.user)}
+                    comments={post.comments}
+                  />
                 </article>
               ))}
             </div>

@@ -20,6 +20,19 @@ enum MediaType {
   VIDEO
 }
 
+enum PostVisibility {
+  PUBLIC
+  FOLLOWERS_ONLY
+}
+
+enum VisualEffect {
+  NONE
+  FADE
+  ZOOM
+  SLIDE
+  BOUNCE
+}
+
 enum NotificationType {
   LIKE
   COMMENT
@@ -27,6 +40,7 @@ enum NotificationType {
   COMMENT_REPLY
   FOLLOW_REQUEST
   FOLLOW_REQUEST_ACCEPTED
+  FOLLOW_REQUEST_REJECTED
 }
 
 enum FollowRequestStatus {
@@ -93,6 +107,9 @@ model Post {
   mediaType     MediaType     @default(TEXT)
   thumbnailUrl  String?       @db.VarChar(2048)
   location      String?       @db.VarChar(160)
+  visibility    PostVisibility @default(PUBLIC)
+  isReel        Boolean       @default(false)
+  visualEffect  VisualEffect  @default(NONE)
   createdAt     DateTime      @default(now()) @db.DateTime(3)
   updatedAt     DateTime      @updatedAt @db.DateTime(3)
   user          User          @relation(fields: [userId], references: [id], onDelete: Cascade)
@@ -105,6 +122,8 @@ model Post {
   @@index([userId, createdAt])
   @@index([createdAt])
   @@index([mediaType, createdAt])
+  @@index([visibility, createdAt])
+  @@index([isReel, createdAt])
 }
 
 model Comment {
@@ -199,6 +218,7 @@ model Story {
   userId    String      @db.Char(36)
   mediaUrl  String      @db.VarChar(2048)
   mediaType MediaType
+  visualEffect VisualEffect @default(NONE)
   createdAt DateTime    @default(now()) @db.DateTime(3)
   expiresAt DateTime    @db.DateTime(3)
   user      User        @relation(fields: [userId], references: [id], onDelete: Cascade)

@@ -3,6 +3,7 @@ import { redirect } from "next/navigation";
 import { SiteHeader } from "@/app/site-header";
 import { getCurrentUser } from "@/lib/session";
 import { prisma } from "@/lib/prisma";
+import { visiblePostsWhere } from "@/lib/visibility";
 
 export const instant = false;
 
@@ -34,13 +35,7 @@ export default async function SearchPage({ searchParams }: SearchPageProps) {
           where: {
             AND: [
               { caption: { contains: query } },
-              {
-                OR: [
-                  { userId: currentUser.id },
-                  { user: { isPrivate: false } },
-                  { user: { followers: { some: { followerId: currentUser.id } } } },
-                ],
-              },
+              visiblePostsWhere(currentUser.id),
             ],
           },
           include: { user: { select: { username: true, displayName: true } } },
@@ -49,7 +44,7 @@ export default async function SearchPage({ searchParams }: SearchPageProps) {
         }),
         prisma.hashtag.findMany({
           where: { tagKey: { contains: normalized.replace(/^#/, "") } },
-          include: { _count: { select: { posts: true } } },
+          include: { _count: { select: { posts: { where: { post: visiblePostsWhere(currentUser.id) } } } } },
           take: 12,
           orderBy: { createdAt: "desc" },
         }),
@@ -86,7 +81,7 @@ export default async function SearchPage({ searchParams }: SearchPageProps) {
             <section>
               <h2 className="text-sm font-semibold uppercase tracking-wide text-[#68716b]">Hashtag’ler</h2>
               {hashtags.length ? <div className="mt-3 flex flex-wrap gap-2">
-                {hashtags.map((tag) => <span key={tag.id} className="rounded-full border border-[#dce2dc] bg-white px-3 py-2 text-sm"><b>#{tag.name}</b> <span className="text-[#788179]">{tag._count.posts}</span></span>)}
+                {hashtags.map((tag) => <Link key={tag.id} href={`/search?q=${encodeURIComponent(`#${tag.name}`)}`} className="rounded-full border border-[#dce2dc] bg-white px-3 py-2 text-sm hover:border-[#9fb59e]"><b>#{tag.name}</b> <span className="text-[#788179]">{tag._count.posts}</span></Link>)}
               </div> : <p className="mt-3 text-sm text-[#788179]">Hashtag bulunamadı.</p>}
             </section>
             <section>

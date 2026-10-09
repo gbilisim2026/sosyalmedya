@@ -4,6 +4,7 @@ import { notFound, redirect } from "next/navigation";
 import { SiteHeader } from "@/app/site-header";
 import { getCurrentUser } from "@/lib/session";
 import { prisma } from "@/lib/prisma";
+import { visualEffectClass } from "@/lib/effects";
 
 export const instant = false;
 
@@ -45,7 +46,7 @@ export default async function StoryPage({ params }: StoryPageProps) {
           <span className="text-xs text-[#788179]">{story.expiresAt.toLocaleString("tr-TR", { hour: "2-digit", minute: "2-digit" })}’de sona erer</span>
         </div>
         <div className="mx-auto flex min-h-[55vh] max-h-[78vh] items-center justify-center overflow-hidden rounded-2xl bg-[#18231d]">
-          {story.mediaType === "VIDEO" ? <video src={story.mediaUrl} controls autoPlay playsInline className="max-h-[78vh] w-full object-contain" /> : <Image src={story.mediaUrl} width={1080} height={1920} alt={`${story.user.username} hikâyesi`} className="max-h-[78vh] w-full object-contain" />}
+          {story.mediaType === "VIDEO" ? <video src={story.mediaUrl} controls autoPlay playsInline className={`max-h-[78vh] w-full object-contain ${visualEffectClass(story.visualEffect)}`} /> : <Image src={story.mediaUrl} width={1080} height={1920} alt={`${story.user.username} hikâyesi`} className={`max-h-[78vh] w-full object-contain ${visualEffectClass(story.visualEffect)}`} />}
         </div>
         <Link href="/" className="mt-5 inline-block text-sm text-[#557260] hover:underline">← Akışa dön</Link>
       </section>
