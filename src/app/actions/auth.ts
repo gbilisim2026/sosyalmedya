@@ -4,7 +4,7 @@ import { hash, verify } from "@node-rs/argon2";
 import { z } from "zod";
 import { redirect } from "next/navigation";
 import { prisma } from "@/lib/prisma";
-import { createSession, destroySession } from "@/lib/session";
+import { createSession, destroySession, getCurrentUser } from "@/lib/session";
 
 export type AuthState = { error?: string };
 
@@ -89,4 +89,51 @@ export async function loginAction(
 export async function logoutAction() {
   await destroySession();
   redirect("/login");
+}
+
+export async function saveAccountAction(formData: FormData) {
+  const currentUser = await getCurrentUser();
+  if (!currentUser) redirect("/login");
+  const parsed = z.object({
+    username: usernameSchema,
+    password: z.string().min(1),
+  }).safeParse({
+    username: formData.get("username"),
+    password: formData.get("password"),
+  });
+  if (!parsed.success) redirect("/settings?accountError=credentials");
+  const account = await prisma.user.findUnique({
+    where: { usernameKey: parsed.data.username.toLowerCase() },
+    select: { id: true, passwordHash: true },
+  });
+  if (!account || account.id === currentUser.id || !(await verify(account.passwordHash, parsed.data.password))) {
+    redirect("/settings?accountError=credentials");
+  }
+  const linkedCount = await prisma.savedAccount.count({ where: { ownerId: currentUser.id } });
+  if (linkedCount >= 9) redirect("/settings?accountError=limit");
+  await prisma.$transaction([
+    prisma.savedAccount.upsert({
+      where: { ownerId_accountUserId: { ownerId: currentUser.id, accountUserId: account.id } },
+      create: { ownerId: currentUser.id, accountUserId: account.id },
+      update: {},
+    }),
+    prisma.savedAccount.upsert({
+      where: { ownerId_accountUserId: { ownerId: account.id, accountUserId: currentUser.id } },
+      create: { ownerId: account.id, accountUserId: currentUser.id },
+      update: {},
+    }),
+  ]);
+  redirect("/settings?accountAdded=1");
+}
+
+export async function switchAccountAction(accountId: string) {
+  const currentUser = await getCurrentUser();
+  if (!currentUser) redirect("/login");
+  const savedAccount = await prisma.savedAccount.findFirst({
+    where: { ownerId: currentUser.id, accountUserId: accountId },
+    select: { accountUserId: true },
+  });
+  if (!savedAccount) redirect("/settings?accountError=unauthorized");
+  await createSession(savedAccount.accountUserId);
+  redirect("/");
 }

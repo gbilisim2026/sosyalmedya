@@ -3,6 +3,7 @@ import { cookies } from "next/headers";
 import { prisma } from "@/lib/prisma";
 
 const cookieName = "sosyalmedya_session";
+const themeCookieName = "sosyalmedya_theme";
 const sessionLifetimeSeconds = 60 * 60 * 24 * 7;
 
 function hashToken(token: string) {
@@ -19,8 +20,21 @@ export async function createSession(userId: string) {
   });
 
   const cookieStore = await cookies();
+  const account = await prisma.user.findUnique({ where: { id: userId }, select: { themePreference: true } });
+  if (account) cookieStore.set(themeCookieName, account.themePreference, { httpOnly: false, sameSite: "lax", path: "/", maxAge: sessionLifetimeSeconds });
   cookieStore.set(cookieName, token, {
     httpOnly: true,
+    secure: process.env.NODE_ENV === "production",
+    sameSite: "lax",
+    path: "/",
+    maxAge: sessionLifetimeSeconds,
+  });
+}
+
+export async function setThemeCookie(theme: "SYSTEM" | "LIGHT" | "DARK") {
+  const cookieStore = await cookies();
+  cookieStore.set(themeCookieName, theme, {
+    httpOnly: false,
     secure: process.env.NODE_ENV === "production",
     sameSite: "lax",
     path: "/",

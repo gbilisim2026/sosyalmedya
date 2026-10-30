@@ -4,6 +4,8 @@ import { SiteHeader } from "@/app/site-header";
 import { getCurrentUser } from "@/lib/session";
 import { prisma } from "@/lib/prisma";
 import { visiblePostsWhere } from "@/lib/visibility";
+import { UserAvatar } from "@/app/user-avatar";
+import { SearchHistoryRecorder } from "@/app/search-history-recorder";
 
 export const instant = false;
 
@@ -22,12 +24,16 @@ export default async function SearchPage({ searchParams }: SearchPageProps) {
         prisma.user.findMany({
           where: {
             id: { not: currentUser.id },
+            NOT: [
+              { blocksCreated: { some: { blockedId: currentUser.id } } },
+              { blocksReceived: { some: { blockerId: currentUser.id } } },
+            ],
             OR: [
               { usernameKey: { contains: normalized } },
               { displayName: { contains: query } },
             ],
           },
-          select: { username: true, displayName: true, bio: true, avatarUrl: true },
+          select: { username: true, displayName: true, bio: true, avatarUrl: true, avatarScale: true, avatarOffsetX: true, avatarOffsetY: true },
           take: 12,
           orderBy: { createdAt: "desc" },
         }),
@@ -54,6 +60,7 @@ export default async function SearchPage({ searchParams }: SearchPageProps) {
   return (
     <main className="min-h-screen bg-[#f4f6f2] pb-20 text-[#202522] md:pb-8">
       <SiteHeader username={currentUser.username} />
+      {query.length >= 2 && <SearchHistoryRecorder query={query} />}
       <section className="mx-auto max-w-4xl px-5 py-8 sm:px-8">
         <h1 className="text-2xl font-semibold">Ara</h1>
         <form action="/search" className="mt-5 flex gap-2">
@@ -73,7 +80,7 @@ export default async function SearchPage({ searchParams }: SearchPageProps) {
               <h2 className="text-sm font-semibold uppercase tracking-wide text-[#68716b]">Kişiler</h2>
               {people.length ? <div className="mt-3 divide-y divide-[#e8ece6] rounded-xl border border-[#e1e6df] bg-white px-4">
                 {people.map((person) => <Link key={person.username} href={`/profile/${encodeURIComponent(person.username)}`} className="flex items-center gap-3 py-3 hover:text-[#315b46]">
-                  <span className="grid size-10 place-items-center rounded-full bg-[#e9efe7] font-semibold text-[#315b46]">{(person.displayName ?? person.username).slice(0, 1).toUpperCase()}</span>
+                  <UserAvatar {...person} className="size-10" />
                   <span><span className="block text-sm font-semibold">{person.displayName ?? person.username}</span><span className="text-xs text-[#788179]">@{person.username}</span></span>
                 </Link>)}
               </div> : <p className="mt-3 text-sm text-[#788179]">Kişi bulunamadı.</p>}

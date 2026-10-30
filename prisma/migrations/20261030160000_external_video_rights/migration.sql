@@ -1,0 +1,4 @@
+ALTER TABLE `ExternalVideo`
+    ADD COLUMN `mediaUrl` VARCHAR(2048) NULL,
+    ADD COLUMN `licenseUrl` VARCHAR(2048) NULL,
+    ADD COLUMN `licenseName` VARCHAR(80) NULL;

@@ -3,9 +3,13 @@ import { ArrowRight, Camera, Plus, Sparkles } from "lucide-react";
 import { SiteHeader } from "@/app/site-header";
 import { getCurrentUser } from "@/lib/session";
 import { prisma } from "@/lib/prisma";
-import { visiblePostsWhere } from "@/lib/visibility";
 import { visualEffectClass } from "@/lib/effects";
 import { PostEngagement } from "@/app/post-engagement";
+import { visibleStoriesWhere } from "@/lib/visibility";
+import { PostControls } from "@/app/post-controls";
+import { UserAvatar } from "@/app/user-avatar";
+import { getRecommendedPosts } from "@/lib/recommendations";
+import { RecommendationFeedbackButtons } from "@/app/recommendation-controls";
 
 export const instant = false;
 
@@ -73,34 +77,10 @@ export default async function Home() {
   }
 
   const [posts, stories] = await Promise.all([
-    prisma.post.findMany({
-      where: visiblePostsWhere(currentUser.id),
-      orderBy: { createdAt: "desc" },
-      take: 20,
-      include: {
-        user: { select: { username: true, displayName: true, avatarUrl: true } },
-        _count: { select: { likes: true, comments: true } },
-        likes: {
-          take: 6,
-          orderBy: { createdAt: "desc" },
-          select: { user: { select: { username: true, displayName: true } } },
-        },
-        comments: {
-          take: 5,
-          orderBy: { createdAt: "desc" },
-          select: { id: true, content: true, user: { select: { username: true, displayName: true } } },
-        },
-      },
-    }),
+    getRecommendedPosts(currentUser.id, 20),
     prisma.story.findMany({
-      where: {
-        expiresAt: { gt: new Date() },
-        OR: [
-          { userId: currentUser.id },
-          { user: { followers: { some: { followerId: currentUser.id } } } },
-        ],
-      },
-      include: { user: { select: { username: true, displayName: true } } },
+      where: { isArchived: false, expiresAt: { gt: new Date() }, AND: [visibleStoriesWhere(currentUser.id)] },
+      include: { user: { select: { username: true, displayName: true, avatarUrl: true, avatarScale: true, avatarOffsetX: true, avatarOffsetY: true } } },
       orderBy: { createdAt: "desc" },
       take: 20,
     }),
@@ -111,11 +91,15 @@ export default async function Home() {
       select: { postId: true },
     })).map((like) => like.postId),
   );
+  const savedPostIds = new Set((await prisma.savedPost.findMany({
+    where: { userId: currentUser.id, postId: { in: posts.map((post) => post.id) } },
+    select: { postId: true },
+  })).map(({ postId }) => postId));
 
   return (
     <main className="min-h-screen bg-[#f4f6f2] text-[#202522]">
       <SiteHeader username={currentUser.username} />
-      <section className="mx-auto grid max-w-6xl gap-8 px-5 py-8 sm:px-8 lg:grid-cols-[minmax(0,680px)_280px]">
+      <section className="mx-auto grid w-full max-w-6xl gap-6 px-4 py-6 sm:px-8 xl:grid-cols-[minmax(0,1fr)_260px]">
         <div>
           <div className="mb-6">
             <p className="text-sm font-medium text-[#64806f]">Merhaba, @{currentUser.username}</p>
@@ -125,14 +109,12 @@ export default async function Home() {
             </div>
           </div>
           {stories.length > 0 && (
-            <section aria-label="Aktif hikâyeler" className="mb-7 overflow-x-auto rounded-2xl border border-[#e1e6df] bg-white p-4">
+            <section aria-label="Aktif hikâyeler" className="story-strip mb-6 overflow-x-auto rounded-2xl border border-[#e1e6df] bg-white p-4">
               <div className="flex w-max gap-4">
                 {stories.map((story) => (
                   <Link key={story.id} href={`/stories/${story.id}`} className="flex w-16 flex-col items-center gap-2">
                     <span className={`grid size-14 place-items-center rounded-full bg-gradient-to-br from-[#e36650] via-[#e7aa58] to-[#4f8266] p-[2px] ${visualEffectClass(story.visualEffect)}`}>
-                      <span className="grid size-full place-items-center rounded-full border-2 border-white bg-[#edf4e9] text-sm font-semibold text-[#315b46]">
-                        {(story.user.displayName ?? story.user.username).slice(0, 1).toUpperCase()}
-                      </span>
+                      <UserAvatar {...story.user} className="size-full border-2 border-white text-sm" />
                     </span>
                     <span className="w-full truncate text-center text-[11px]">{story.user.username}</span>
                   </Link>
@@ -153,11 +135,9 @@ export default async function Home() {
           ) : (
             <div className="space-y-6">
               {posts.map((post) => (
-                <article key={post.id} className="overflow-hidden rounded-2xl border border-[#e1e6df] bg-white">
+                <article key={post.id} className="feed-card overflow-hidden rounded-2xl border border-[#e1e6df] bg-white">
                   <header className="flex items-center gap-3 p-4">
-                    <span className="grid size-10 shrink-0 place-items-center rounded-full bg-[#e9efe7] text-sm font-semibold text-[#315b46]">
-                      {(post.user.displayName ?? post.user.username).slice(0, 1).toUpperCase()}
-                    </span>
+                    <UserAvatar {...post.user} className="size-10 text-sm" />
                     <Link href={`/profile/${encodeURIComponent(post.user.username)}`} className="min-w-0 hover:text-[#315b46]">
                       <p className="truncate text-sm font-semibold">{post.user.displayName ?? post.user.username}</p>
                       <p className="text-xs text-[#788179]">@{post.user.username}</p>
@@ -169,6 +149,13 @@ export default async function Home() {
                       {post.createdAt.toLocaleDateString("tr-TR")}
                     </time>
                   </header>
+                  {post.sharedPost && (
+                    <Link href={`/post/${post.sharedPost.id}`} className="block border-b border-[#edf0eb] px-4 py-3 hover:bg-[#f8faf7]">
+                      <p className="text-xs text-[#68716b]">@{post.user.username} yeniden paylaştı · Orijinal gönderi</p>
+                      <p className="mt-1 text-sm font-semibold">@{post.sharedPost.user.username}</p>
+                      <p className="mt-1 line-clamp-4 whitespace-pre-wrap text-sm">{post.sharedPost.caption ?? (post.sharedPost.mediaType === "VIDEO" ? "Video gönderisi" : "Fotoğraf gönderisi")}</p>
+                    </Link>
+                  )}
                   {post.mediaType === "VIDEO" && post.mediaUrl ? (
                     <video className={`max-h-[680px] w-full bg-black object-contain ${visualEffectClass(post.visualEffect)}`} src={post.mediaUrl} controls />
                   ) : post.mediaType === "PHOTO" && post.mediaUrl ? (
@@ -187,18 +174,29 @@ export default async function Home() {
                     likedByCurrentUser={likedPostIds.has(post.id)}
                     likers={post.likes.map((like) => like.user)}
                     comments={post.comments}
+                    hideLikeCount={post.hideLikeCount && post.userId !== currentUser.id}
                   />
+                  <PostControls
+                    postId={post.id}
+                    isOwner={post.userId === currentUser.id}
+                    isSaved={savedPostIds.has(post.id)}
+                    isPinned={post.isPinned}
+                    isFeatured={post.isFeatured}
+                    isReshareAllowed={post.allowReshare}
+                    allowReshare={post.allowReshare && !post.sharedPostId}
+                  />
+                  {post.userId !== currentUser.id && <RecommendationFeedbackButtons postId={post.id} authorId={post.userId} category={post.category} />}
                 </article>
               ))}
             </div>
           )}
         </div>
-        <aside className="hidden lg:block">
-          <div className="sticky top-24 rounded-2xl border border-[#e1e6df] bg-white p-5">
+        <aside className="hidden xl:block">
+          <div className="sticky top-6 rounded-2xl border border-[#e1e6df] bg-white p-5 shadow-sm">
             <p className="text-sm font-semibold">Hesabın</p>
             <p className="mt-2 text-sm text-[#68716b]">@{currentUser.username}</p>
             <p className="mt-4 border-t border-[#edf0eb] pt-4 text-xs leading-5 text-[#788179]">
-              Gönderiler ve etkileşimler hesabına bağlı olarak saklanır.
+              Gönderiler ve etkileşimler hesabına bağlı olarak saklanır. <Link href="/settings/interests" className="font-semibold text-[#557260] hover:underline">Öneri tercihlerini yönet</Link>
             </p>
           </div>
         </aside>

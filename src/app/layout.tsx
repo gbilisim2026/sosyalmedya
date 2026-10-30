@@ -1,6 +1,8 @@
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
+import { cookies } from "next/headers";
+import { PresenceHeartbeat } from "@/app/presence-heartbeat";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -17,13 +19,18 @@ export const metadata: Metadata = {
   description: "Fotoğraf ve video paylaşım topluluğu",
 };
 
-export default function RootLayout({ children }: LayoutProps<"/">) {
+export const instant = false;
+
+export default async function RootLayout({ children }: LayoutProps<"/">) {
+  const theme = (await cookies()).get("sosyalmedya_theme")?.value;
+  const themePreference = theme === "DARK" || theme === "LIGHT" ? theme : "SYSTEM";
   return (
     <html
       lang="tr"
-      className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
+      data-theme={themePreference}
+      className={`${geistSans.variable} ${geistMono.variable} h-full antialiased ${themePreference === "DARK" ? "dark" : ""}`}
     >
-      <body className="min-h-full flex flex-col">{children}</body>
+      <body className="min-h-full flex flex-col"><PresenceHeartbeat />{children}</body>
     </html>
   );
 }

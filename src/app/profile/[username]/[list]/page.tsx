@@ -3,6 +3,7 @@ import { notFound, redirect } from "next/navigation";
 import { SiteHeader } from "@/app/site-header";
 import { getCurrentUser } from "@/lib/session";
 import { prisma } from "@/lib/prisma";
+import { UserAvatar } from "@/app/user-avatar";
 
 export const instant = false;
 
@@ -24,6 +25,16 @@ export default async function AccountListPage({ params }: AccountListPageProps) 
   if (!profile) notFound();
 
   const isOwnProfile = profile.id === currentUser.id;
+  const isBlocked = isOwnProfile ? false : Boolean(await prisma.userBlock.findFirst({
+    where: {
+      OR: [
+        { blockerId: profile.id, blockedId: currentUser.id },
+        { blockerId: currentUser.id, blockedId: profile.id },
+      ],
+    },
+    select: { id: true },
+  }));
+  if (isBlocked) notFound();
   const isFollowing = isOwnProfile || !profile.isPrivate || Boolean(await prisma.follow.findUnique({
     where: { followerId_followingId: { followerId: currentUser.id, followingId: profile.id } },
     select: { id: true },
@@ -42,14 +53,26 @@ export default async function AccountListPage({ params }: AccountListPageProps) 
   const people = list === "followers"
     ? await prisma.follow.findMany({
         where: { followingId: profile.id },
-        include: { follower: { select: { username: true, displayName: true, bio: true } } },
+        include: { follower: { select: { id: true, username: true, displayName: true, bio: true, avatarUrl: true, avatarScale: true, avatarOffsetX: true, avatarOffsetY: true } } },
         orderBy: { createdAt: "desc" },
       }).then((entries) => entries.map((entry) => entry.follower))
     : await prisma.follow.findMany({
         where: { followerId: profile.id },
-        include: { following: { select: { username: true, displayName: true, bio: true } } },
+        include: { following: { select: { id: true, username: true, displayName: true, bio: true, avatarUrl: true, avatarScale: true, avatarOffsetX: true, avatarOffsetY: true } } },
         orderBy: { createdAt: "desc" },
       }).then((entries) => entries.map((entry) => entry.following));
+  const blockedPeople = people.length
+    ? new Set((await prisma.userBlock.findMany({
+        where: {
+          OR: [
+            { blockerId: currentUser.id, blockedId: { in: people.map(({ id }) => id) } },
+            { blockerId: { in: people.map(({ id }) => id) }, blockedId: currentUser.id },
+          ],
+        },
+        select: { blockerId: true, blockedId: true },
+      })).flatMap(({ blockerId, blockedId }) => [blockerId, blockedId]))
+    : new Set<string>();
+  const visiblePeople = people.filter((person) => !blockedPeople.has(person.id));
 
   const title = list === "followers" ? "Takipçiler" : "Takip edilenler";
 
@@ -60,8 +83,8 @@ export default async function AccountListPage({ params }: AccountListPageProps) 
         <Link href={`/profile/${encodeURIComponent(profile.username)}`} className="text-sm text-[#557260] hover:underline">← @{profile.username}</Link>
         <h1 className="mt-4 text-2xl font-semibold">{title}</h1>
         <div className="mt-5 divide-y divide-[#edf0eb] rounded-2xl border border-[#e1e6df] bg-white px-5">
-          {people.length ? people.map((person) => <Link key={person.username} href={`/profile/${encodeURIComponent(person.username)}`} className="flex items-center gap-3 py-4 hover:text-[#315b46]">
-            <span className="grid size-11 place-items-center rounded-full bg-[#e9efe7] font-semibold text-[#315b46]">{(person.displayName ?? person.username).slice(0, 1).toUpperCase()}</span>
+          {visiblePeople.length ? visiblePeople.map((person) => <Link key={person.username} href={`/profile/${encodeURIComponent(person.username)}`} className="flex items-center gap-3 py-4 hover:text-[#315b46]">
+            <UserAvatar {...person} className="size-11" />
             <span><span className="block text-sm font-semibold">{person.displayName ?? person.username}</span><span className="text-xs text-[#788179]">@{person.username}</span></span>
             {person.bio && <span className="ml-auto hidden max-w-[45%] truncate text-xs text-[#788179] sm:block">{person.bio}</span>}
           </Link>) : <p className="py-10 text-center text-sm text-[#788179]">Henüz kullanıcı yok.</p>}

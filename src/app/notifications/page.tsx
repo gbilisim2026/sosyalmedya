@@ -11,6 +11,7 @@ import { SiteHeader } from "@/app/site-header";
 import { getCurrentUser } from "@/lib/session";
 import { prisma } from "@/lib/prisma";
 import { redirect } from "next/navigation";
+import { UserAvatar } from "@/app/user-avatar";
 
 export const instant = false;
 
@@ -22,6 +23,8 @@ function notificationMessage(type: NotificationType) {
       return "takip isteğini kabul etti.";
     case NotificationType.FOLLOW_REQUEST_REJECTED:
       return "takip isteğini reddetti.";
+    case NotificationType.FOLLOW_REQUEST_REJECTED:
+      return "takip isteğini reddetti.";
     case NotificationType.LIKE:
       return "gönderini beğendi.";
     case NotificationType.COMMENT:
@@ -30,6 +33,10 @@ function notificationMessage(type: NotificationType) {
       return "yorumuna yanıt verdi.";
     case NotificationType.FOLLOW_REQUEST:
       return "sana takip isteği gönderdi.";
+    case NotificationType.MESSAGE:
+      return "sana yeni bir mesaj gönderdi.";
+    case NotificationType.RESHARE:
+      return "gönderini yeniden paylaştı.";
   }
 }
 
@@ -40,12 +47,12 @@ export default async function NotificationsPage() {
   const [requests, notifications] = await Promise.all([
     prisma.followRequest.findMany({
       where: { targetId: user.id, status: "PENDING" },
-      include: { requester: { select: { username: true, displayName: true, avatarUrl: true } } },
+      include: { requester: { select: { username: true, displayName: true, avatarUrl: true, avatarScale: true, avatarOffsetX: true, avatarOffsetY: true } } },
       orderBy: { createdAt: "desc" },
     }),
     prisma.notification.findMany({
       where: { userId: user.id, type: { not: NotificationType.FOLLOW_REQUEST } },
-      include: { actor: { select: { username: true, displayName: true } } },
+      include: { actor: { select: { username: true, displayName: true, avatarUrl: true, avatarScale: true, avatarOffsetX: true, avatarOffsetY: true } } },
       orderBy: { createdAt: "desc" },
       take: 50,
     }),
@@ -72,9 +79,7 @@ export default async function NotificationsPage() {
           <h2 className="flex items-center gap-2 text-sm font-semibold"><UserPlus size={17} /> Takip istekleri</h2>
           {requests.length ? <div className="mt-3 divide-y divide-[#edf0eb] rounded-2xl border border-[#e1e6df] bg-white px-4">
             {requests.map((request) => <div key={request.id} className="flex flex-wrap items-center gap-3 py-4">
-              <Link href={`/profile/${encodeURIComponent(request.requester.username)}`} className="grid size-11 shrink-0 place-items-center rounded-full bg-[#e9efe7] font-semibold text-[#315b46]">
-                {(request.requester.displayName ?? request.requester.username).slice(0, 1).toUpperCase()}
-              </Link>
+              <Link href={`/profile/${encodeURIComponent(request.requester.username)}`}><UserAvatar {...request.requester} className="size-11" /></Link>
               <div className="min-w-0 flex-1">
                 <p className="text-sm"><Link href={`/profile/${encodeURIComponent(request.requester.username)}`} className="font-semibold hover:underline">@{request.requester.username}</Link> seni takip etmek istiyor.</p>
                 <time className="text-xs text-[#788179]">{request.createdAt.toLocaleDateString("tr-TR")}</time>
@@ -93,14 +98,15 @@ export default async function NotificationsPage() {
           <h2 className="flex items-center gap-2 text-sm font-semibold"><Bell size={17} /> Son aktiviteler</h2>
           {notifications.length ? <div className="mt-3 divide-y divide-[#edf0eb] rounded-2xl border border-[#e1e6df] bg-white px-4">
             {notifications.map((notification) => <div key={notification.id} className={`flex items-center gap-3 py-4 ${notification.isRead ? "" : "-mx-4 border-l-[3px] border-[#e36650] bg-[#fffaf6] px-4"}`}>
-              <Link href={`/profile/${encodeURIComponent(notification.actor.username)}`} className="grid size-10 shrink-0 place-items-center rounded-full bg-[#e9efe7] font-semibold text-[#315b46]">
-                {(notification.actor.displayName ?? notification.actor.username).slice(0, 1).toUpperCase()}
-              </Link>
+              <Link href={`/profile/${encodeURIComponent(notification.actor.username)}`}><UserAvatar {...notification.actor} className="size-10" /></Link>
               <p className="min-w-0 flex-1 text-sm">
                 <Link href={`/profile/${encodeURIComponent(notification.actor.username)}`} className="font-semibold hover:underline">@{notification.actor.username}</Link>{" "}
                 {notificationMessage(notification.type)}
                 <time className="mt-1 block text-xs text-[#788179]">{notification.createdAt.toLocaleDateString("tr-TR")}</time>
               </p>
+              <Link href={notification.type === NotificationType.MESSAGE ? "/messages" : notification.postId ? `/post/${notification.postId}` : `/profile/${encodeURIComponent(notification.actor.username)}`} className="rounded-lg border border-[#dce2dc] px-2.5 py-2 text-xs font-semibold hover:bg-[#edf4e9]">
+                Aç
+              </Link>
               {!notification.isRead && <form action={markNotificationReadAction.bind(null, notification.id)}>
                 <button aria-label="Okundu işaretle" title="Okundu işaretle" className="grid size-9 place-items-center rounded-lg text-[#557260] hover:bg-[#edf4e9]"><Check size={17} /></button>
               </form>}

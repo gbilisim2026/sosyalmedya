@@ -22,19 +22,24 @@ export default async function ReelsPage() {
     },
     select: {
       id: true,
+      userId: true,
+      sharedPostId: true,
       mediaUrl: true,
       caption: true,
+      category: true,
+      allowReshare: true,
       visualEffect: true,
-      user: { select: { username: true, displayName: true } },
+      hideLikeCount: true,
+      user: { select: { username: true, displayName: true, avatarUrl: true, avatarScale: true, avatarOffsetX: true, avatarOffsetY: true } },
       likes: {
         take: 6,
         orderBy: { createdAt: "desc" },
-        select: { user: { select: { username: true, displayName: true } } },
+        select: { user: { select: { username: true, displayName: true, avatarUrl: true, avatarScale: true, avatarOffsetX: true, avatarOffsetY: true } } },
       },
       comments: {
         take: 5,
         orderBy: { createdAt: "desc" },
-        select: { id: true, content: true, user: { select: { username: true, displayName: true } } },
+        select: { id: true, content: true, gifUrl: true, gifLicense: true, gifAttributionUrl: true, user: { select: { username: true, displayName: true, avatarUrl: true, avatarScale: true, avatarOffsetX: true, avatarOffsetY: true } } },
       },
       _count: { select: { likes: true, comments: true } },
     },
@@ -42,12 +47,37 @@ export default async function ReelsPage() {
       take: 30,
   });
 
-  const likedPostIds = new Set(
-    (await prisma.like.findMany({
+  const [likedPostIds, savedPostIds] = await Promise.all([
+    prisma.like.findMany({
       where: { userId: user.id, postId: { in: posts.map((post) => post.id) } },
       select: { postId: true },
-    })).map((like) => like.postId),
-  );
+    }).then((likes) => new Set(likes.map((like) => like.postId))),
+    prisma.savedPost.findMany({
+      where: { userId: user.id, postId: { in: posts.map((post) => post.id) } },
+      select: { postId: true },
+    }).then((saved) => new Set(saved.map((post) => post.postId))),
+  ]);
+  const viewStats = await prisma.postView.groupBy({
+    by: ["postId"],
+    where: { postId: { in: posts.map((post) => post.id) } },
+    _sum: { viewCount: true },
+    _count: { _all: true },
+  });
+  const ownerPostIds = posts.filter((post) => post.userId === user.id).map((post) => post.id);
+  const ownerViews = ownerPostIds.length
+    ? await prisma.postView.findMany({
+        where: { postId: { in: ownerPostIds } },
+        include: { viewer: { select: { username: true, displayName: true } } },
+        orderBy: { createdAt: "desc" },
+      })
+    : [];
+  const viewsByPost = new Map(viewStats.map((row) => [row.postId, row]));
+  const viewerNamesByPost = new Map<string, { username: string; displayName: string | null }[]>();
+  for (const row of ownerViews) {
+    const viewers = viewerNamesByPost.get(row.postId) ?? [];
+    if (!viewers.some((viewer) => viewer.username === row.viewer.username)) viewers.push(row.viewer);
+    viewerNamesByPost.set(row.postId, viewers);
+  }
 
   return (
     <main className="min-h-screen bg-[#101512] pb-16 text-white md:pb-0">
@@ -64,6 +94,13 @@ export default async function ReelsPage() {
           mediaUrl: post.mediaUrl,
           likesCount: post._count.likes,
           commentsCount: post._count.comments,
+          viewsCount: viewsByPost.get(post.id)?._sum.viewCount ?? 0,
+          uniqueViewers: viewsByPost.get(post.id)?._count._all ?? 0,
+          viewers: viewerNamesByPost.get(post.id) ?? [],
+          isOwner: post.userId === user.id,
+          isSaved: savedPostIds.has(post.id),
+          category: post.category,
+          allowReshare: post.allowReshare && !post.sharedPostId,
           likedByCurrentUser: likedPostIds.has(post.id),
           likers: post.likes.map((like) => like.user),
         }] : [])} />

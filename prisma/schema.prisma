@@ -41,12 +41,49 @@ enum NotificationType {
   FOLLOW_REQUEST
   FOLLOW_REQUEST_ACCEPTED
   FOLLOW_REQUEST_REJECTED
+  MESSAGE
+  RESHARE
 }
 
 enum FollowRequestStatus {
   PENDING
   ACCEPTED
   REJECTED
+}
+
+enum ContentAudience {
+  EVERYONE
+  FOLLOWERS
+  CLOSE_FRIENDS
+  SELECTED
+}
+
+enum ThemePreference {
+  SYSTEM
+  LIGHT
+  DARK
+}
+
+enum ActivityAction {
+  FOLLOWED
+  UNFOLLOWED
+}
+
+enum DirectMessageKind {
+  TEXT
+  SONG
+  STATUS
+}
+
+enum DirectConversationStatus {
+  PENDING
+  ACCEPTED
+}
+
+enum RecommendationFeedbackType {
+  NOT_INTERESTED_POST
+  LESS_CATEGORY
+  HIDE_ACCOUNT
 }
 
 enum MockContentType {
@@ -77,6 +114,21 @@ model User {
   displayName            String?         @db.VarChar(60)
   bio                    String?         @db.VarChar(300)
   avatarUrl              String?         @db.VarChar(2048)
+  avatarScale            Float           @default(1)
+  avatarOffsetX          Int             @default(50)
+  avatarOffsetY          Int             @default(50)
+  profileNote            String?         @db.VarChar(180)
+  profileNoteAudience    ContentAudience @default(EVERYONE)
+  profileNoteExpiresAt   DateTime?       @db.DateTime(3)
+  profileMusicTrackId    String?         @db.VarChar(40)
+  profileMusicTitle      String?         @db.VarChar(200)
+  profileMusicArtist     String?         @db.VarChar(200)
+  profileMusicArtworkUrl String?         @db.VarChar(2048)
+  profileMusicPreviewUrl String?         @db.VarChar(2048)
+  profileMusicTrackUrl   String?         @db.VarChar(2048)
+  themePreference        ThemePreference @default(SYSTEM)
+  showActivityStatus     Boolean         @default(true)
+  lastActiveAt           DateTime?       @db.DateTime(3)
   coverUrl               String?         @db.VarChar(2048)
   isPrivate              Boolean         @default(false)
   createdAt              DateTime        @default(now()) @db.DateTime(3)
@@ -93,9 +145,30 @@ model User {
   notificationsSent      Notification[]  @relation("NotificationActor")
   stories                Story[]
   storyViews             StoryView[]
+  postViews              PostView[]
+  blocksCreated          UserBlock[]     @relation("Blocker")
+  blocksReceived         UserBlock[]     @relation("Blocked")
+  closeFriendsAsOwner    CloseFriend[]   @relation("CloseFriendOwner")
+  closeFriendsAsFriend   CloseFriend[]   @relation("CloseFriendMember")
+  postAudienceEntries    PostAudience[]
+  storyAudienceEntries   StoryAudience[]
+  conversationsOne      DirectConversation[] @relation("ConversationUserOne")
+  conversationsTwo      DirectConversation[] @relation("ConversationUserTwo")
+  messagesSent           DirectMessage[] @relation("MessageSender")
   mockContents           MockContent[]
   sessions               Session[]
+  savedAccounts          SavedAccount[]  @relation("SavedAccountOwner")
+  savedByAccounts        SavedAccount[]  @relation("SavedAccountTarget")
+  activityEntries        UserActivity[]  @relation("ActivityActor")
+  activityTargets        UserActivity[]  @relation("ActivityTarget")
+  recommendationPreference RecommendationPreference?
+  recommendationFeedback RecommendationFeedback[] @relation("RecommendationFeedbackOwner")
+  feedbackAboutUser      RecommendationFeedback[] @relation("RecommendationFeedbackTarget")
+  dismissedSuggestions   SuggestedAccountDismissal[] @relation("SuggestionDismissalOwner")
+  suggestionDismissals   SuggestedAccountDismissal[] @relation("SuggestionDismissalTarget")
+  searchHistory          SearchHistory[]
 
+  @@index([displayName])
   @@index([createdAt])
 }
 
@@ -103,13 +176,21 @@ model Post {
   id            String        @id @default(uuid()) @db.Char(36)
   userId        String        @db.Char(36)
   caption       String?       @db.Text
+  category      String?       @db.VarChar(40)
   mediaUrl      String?       @db.VarChar(2048)
   mediaType     MediaType     @default(TEXT)
   thumbnailUrl  String?       @db.VarChar(2048)
   location      String?       @db.VarChar(160)
   visibility    PostVisibility @default(PUBLIC)
+  audience      ContentAudience @default(EVERYONE)
   isReel        Boolean       @default(false)
   visualEffect  VisualEffect  @default(NONE)
+  isArchived    Boolean       @default(false)
+  isPinned      Boolean       @default(false)
+  isFeatured    Boolean       @default(false)
+  allowReshare  Boolean       @default(true)
+  hideLikeCount Boolean      @default(false)
+  sharedPostId  String?       @db.Char(36)
   createdAt     DateTime      @default(now()) @db.DateTime(3)
   updatedAt     DateTime      @updatedAt @db.DateTime(3)
   user          User          @relation(fields: [userId], references: [id], onDelete: Cascade)
@@ -118,12 +199,20 @@ model Post {
   savedBy       SavedPost[]
   hashtags      PostHashtag[]
   notifications Notification[]
+  audienceUsers PostAudience[]
+  views         PostView[]
+  recommendationFeedback RecommendationFeedback[]
+  sharedPost    Post?         @relation("PostReshares", fields: [sharedPostId], references: [id], onDelete: Cascade)
+  reshares      Post[]        @relation("PostReshares")
 
   @@index([userId, createdAt])
+  @@index([userId, isArchived, isPinned, createdAt])
+  @@index([sharedPostId])
   @@index([createdAt])
   @@index([mediaType, createdAt])
   @@index([visibility, createdAt])
   @@index([isReel, createdAt])
+  @@index([category, createdAt])
 }
 
 model Comment {
@@ -131,6 +220,9 @@ model Comment {
   postId        String         @db.Char(36)
   userId        String         @db.Char(36)
   content       String         @db.Text
+  gifUrl        String?        @db.VarChar(2048)
+  gifAttributionUrl String?     @db.VarChar(2048)
+  gifLicense    String?         @db.VarChar(100)
   parentId      String?        @db.Char(36)
   createdAt     DateTime       @default(now()) @db.DateTime(3)
   updatedAt     DateTime       @updatedAt @db.DateTime(3)
@@ -213,18 +305,87 @@ model Notification {
   @@index([actorId, createdAt])
 }
 
+model UserBlock {
+  id        String   @id @default(uuid()) @db.Char(36)
+  blockerId String   @db.Char(36)
+  blockedId String   @db.Char(36)
+  createdAt DateTime @default(now()) @db.DateTime(3)
+  blocker   User     @relation("Blocker", fields: [blockerId], references: [id], onDelete: Cascade)
+  blocked   User     @relation("Blocked", fields: [blockedId], references: [id], onDelete: Cascade)
+
+  @@unique([blockerId, blockedId])
+  @@index([blockedId])
+}
+
+model CloseFriend {
+  id        String   @id @default(uuid()) @db.Char(36)
+  ownerId   String   @db.Char(36)
+  friendId  String   @db.Char(36)
+  createdAt DateTime @default(now()) @db.DateTime(3)
+  owner     User     @relation("CloseFriendOwner", fields: [ownerId], references: [id], onDelete: Cascade)
+  friend    User     @relation("CloseFriendMember", fields: [friendId], references: [id], onDelete: Cascade)
+
+  @@unique([ownerId, friendId])
+  @@index([friendId])
+}
+
+model PostAudience {
+  postId   String @db.Char(36)
+  userId   String @db.Char(36)
+  post     Post   @relation(fields: [postId], references: [id], onDelete: Cascade)
+  user     User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@id([postId, userId])
+  @@index([userId])
+}
+
+model PostView {
+  id        String   @id @default(uuid()) @db.Char(36)
+  postId    String   @db.Char(36)
+  viewerId  String   @db.Char(36)
+  viewCount Int      @default(1)
+  watchedMs Int      @default(0)
+  hiddenFromHistory Boolean @default(false)
+  createdAt DateTime @default(now()) @db.DateTime(3)
+  post      Post     @relation(fields: [postId], references: [id], onDelete: Cascade)
+  viewer    User     @relation(fields: [viewerId], references: [id], onDelete: Cascade)
+
+  @@index([postId, createdAt])
+  @@unique([postId, viewerId])
+}
+
 model Story {
   id        String      @id @default(uuid()) @db.Char(36)
   userId    String      @db.Char(36)
+  caption   String?     @db.VarChar(1000)
   mediaUrl  String      @db.VarChar(2048)
   mediaType MediaType
   visualEffect VisualEffect @default(NONE)
+  audience  ContentAudience @default(EVERYONE)
+  isArchived Boolean   @default(false)
+  allowReshare Boolean @default(true)
+  sharedStoryId String? @db.Char(36)
+  musicTrackId String? @db.VarChar(40)
+  musicTitle String? @db.VarChar(200)
+  musicArtist String? @db.VarChar(200)
+  musicArtworkUrl String? @db.VarChar(2048)
+  musicPreviewUrl String? @db.VarChar(2048)
+  musicTrackUrl String? @db.VarChar(2048)
+  musicStartSeconds Int?
+  musicDurationSeconds Int?
+  musicLabelStyle String? @db.VarChar(20)
+  musicLabelPosition String? @db.VarChar(10)
+  musicLabelScale Int?
   createdAt DateTime    @default(now()) @db.DateTime(3)
   expiresAt DateTime    @db.DateTime(3)
   user      User        @relation(fields: [userId], references: [id], onDelete: Cascade)
   views     StoryView[]
+  audienceUsers StoryAudience[]
+  sharedStory Story? @relation("StoryReshares", fields: [sharedStoryId], references: [id], onDelete: Cascade)
+  reshares Story[] @relation("StoryReshares")
 
-  @@index([userId, expiresAt])
+  @@index([userId, isArchived, expiresAt])
+  @@index([sharedStoryId])
   @@index([expiresAt])
 }
 
@@ -232,12 +393,146 @@ model StoryView {
   id        String   @id @default(uuid()) @db.Char(36)
   storyId   String   @db.Char(36)
   viewerId  String   @db.Char(36)
+  viewCount Int      @default(1)
+  hiddenFromHistory Boolean @default(false)
   createdAt DateTime @default(now()) @db.DateTime(3)
   story     Story    @relation(fields: [storyId], references: [id], onDelete: Cascade)
   viewer    User     @relation(fields: [viewerId], references: [id], onDelete: Cascade)
 
   @@unique([storyId, viewerId])
   @@index([viewerId, createdAt])
+}
+
+model StoryAudience {
+  storyId String @db.Char(36)
+  userId  String @db.Char(36)
+  story   Story  @relation(fields: [storyId], references: [id], onDelete: Cascade)
+  user    User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@id([storyId, userId])
+  @@index([userId])
+}
+
+model DirectConversation {
+  id                  String          @id @default(uuid()) @db.Char(36)
+  pairKey             String          @unique @db.VarChar(73)
+  participantOneId    String          @db.Char(36)
+  participantTwoId    String          @db.Char(36)
+  status              DirectConversationStatus @default(ACCEPTED)
+  requestedById       String?         @db.Char(36)
+  createdAt           DateTime        @default(now()) @db.DateTime(3)
+  updatedAt           DateTime        @updatedAt @db.DateTime(3)
+  participantOne      User            @relation("ConversationUserOne", fields: [participantOneId], references: [id], onDelete: Cascade)
+  participantTwo      User            @relation("ConversationUserTwo", fields: [participantTwoId], references: [id], onDelete: Cascade)
+  messages            DirectMessage[]
+
+  @@index([participantOneId, updatedAt])
+  @@index([participantTwoId, updatedAt])
+}
+
+model DirectMessage {
+  id             String            @id @default(uuid()) @db.Char(36)
+  conversationId String            @db.Char(36)
+  senderId       String            @db.Char(36)
+  content        String            @db.VarChar(4000)
+  kind           DirectMessageKind @default(TEXT)
+  sharedSongTitle String?          @db.VarChar(200)
+  sharedNote     String?           @db.VarChar(240)
+  mediaUrl       String?           @db.VarChar(2048)
+  mediaType      MediaType?
+  isRead         Boolean           @default(false)
+  createdAt      DateTime          @default(now()) @db.DateTime(3)
+  conversation   DirectConversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  sender         User              @relation("MessageSender", fields: [senderId], references: [id], onDelete: Cascade)
+
+  @@index([conversationId, createdAt])
+  @@index([senderId, isRead, createdAt])
+}
+
+model RecommendationPreference {
+  id                    String         @id @default(uuid()) @db.Char(36)
+  userId                String         @unique @db.Char(36)
+  personalizedEnabled   Boolean        @default(true)
+  createdAt             DateTime       @default(now()) @db.DateTime(3)
+  updatedAt             DateTime       @updatedAt @db.DateTime(3)
+  user                  User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  interests             UserInterest[]
+
+  @@index([personalizedEnabled])
+}
+
+model UserInterest {
+  id           String                  @id @default(uuid()) @db.Char(36)
+  preferenceId String                  @db.Char(36)
+  category     String                  @db.VarChar(40)
+  createdAt    DateTime                @default(now()) @db.DateTime(3)
+  preference   RecommendationPreference @relation(fields: [preferenceId], references: [id], onDelete: Cascade)
+
+  @@unique([preferenceId, category])
+  @@index([category])
+}
+
+model RecommendationFeedback {
+  id             String                     @id @default(uuid()) @db.Char(36)
+  userId         String                     @db.Char(36)
+  feedbackKey    String                     @db.VarChar(80)
+  type           RecommendationFeedbackType
+  postId         String?                    @db.Char(36)
+  targetUserId   String?                    @db.Char(36)
+  category       String?                    @db.VarChar(40)
+  createdAt      DateTime                   @default(now()) @db.DateTime(3)
+  user           User                       @relation("RecommendationFeedbackOwner", fields: [userId], references: [id], onDelete: Cascade)
+  targetUser     User?                      @relation("RecommendationFeedbackTarget", fields: [targetUserId], references: [id], onDelete: Cascade)
+  post           Post?                      @relation(fields: [postId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, feedbackKey])
+  @@index([userId, type, createdAt])
+  @@index([category])
+}
+
+model SuggestedAccountDismissal {
+  id         String   @id @default(uuid()) @db.Char(36)
+  userId     String   @db.Char(36)
+  targetId   String   @db.Char(36)
+  createdAt  DateTime @default(now()) @db.DateTime(3)
+  user       User     @relation("SuggestionDismissalOwner", fields: [userId], references: [id], onDelete: Cascade)
+  target     User     @relation("SuggestionDismissalTarget", fields: [targetId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, targetId])
+  @@index([userId, createdAt])
+}
+
+model SearchHistory {
+  id        String   @id @default(uuid()) @db.Char(36)
+  userId    String   @db.Char(36)
+  query     String   @db.VarChar(100)
+  createdAt DateTime @default(now()) @db.DateTime(3)
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, createdAt])
+}
+
+model ExternalVideo {
+  id           String   @id @default(uuid()) @db.Char(36)
+  provider     String   @db.VarChar(24)
+  providerId   String   @db.VarChar(80)
+  title        String   @db.VarChar(300)
+  description  String?  @db.Text
+  creatorName  String   @db.VarChar(200)
+  creatorUrl   String   @db.VarChar(2048)
+  embedUrl     String   @db.VarChar(2048)
+  mediaUrl     String?  @db.VarChar(2048)
+  sourceUrl    String   @db.VarChar(2048)
+  thumbnailUrl String?  @db.VarChar(2048)
+  licenseUrl   String?  @db.VarChar(2048)
+  licenseName  String?  @db.VarChar(80)
+  category     String?  @db.VarChar(40)
+  publishedAt  DateTime? @db.DateTime(3)
+  fetchedAt    DateTime @default(now()) @db.DateTime(3)
+
+  @@unique([provider, providerId])
+  @@index([category, publishedAt])
+  @@index([fetchedAt])
 }
 
 model Hashtag {
@@ -291,4 +586,28 @@ model Session {
 
   @@index([userId, expiresAt])
   @@index([expiresAt])
+}
+
+model SavedAccount {
+  id            String   @id @default(uuid()) @db.Char(36)
+  ownerId       String   @db.Char(36)
+  accountUserId String   @db.Char(36)
+  createdAt     DateTime @default(now()) @db.DateTime(3)
+  owner         User     @relation("SavedAccountOwner", fields: [ownerId], references: [id], onDelete: Cascade)
+  account       User     @relation("SavedAccountTarget", fields: [accountUserId], references: [id], onDelete: Cascade)
+
+  @@unique([ownerId, accountUserId])
+  @@index([ownerId, createdAt])
+}
+
+model UserActivity {
+  id           String         @id @default(uuid()) @db.Char(36)
+  userId       String         @db.Char(36)
+  targetUserId String         @db.Char(36)
+  action       ActivityAction
+  createdAt    DateTime       @default(now()) @db.DateTime(3)
+  user         User           @relation("ActivityActor", fields: [userId], references: [id], onDelete: Cascade)
+  targetUser   User           @relation("ActivityTarget", fields: [targetUserId], references: [id], onDelete: Cascade)
+
+  @@index([userId, createdAt])
 }

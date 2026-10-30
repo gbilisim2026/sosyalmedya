@@ -22,12 +22,12 @@ export async function saveUploadedMedia(file: File) {
   }
 
   const fileName = `${randomUUID()}.${type.extension}`;
-  const uploadDirectory = path.join(process.cwd(), "public", "uploads");
+  const uploadDirectory = path.join(process.cwd(), "private-uploads");
   await mkdir(uploadDirectory, { recursive: true });
   await writeFile(path.join(uploadDirectory, fileName), Buffer.from(await file.arrayBuffer()));
 
   return {
     mediaType: type.mediaType,
-    mediaUrl: `/uploads/${fileName}`,
+    mediaUrl: `/media/${fileName}`,
   };
 }

@@ -2,6 +2,7 @@
 
 import { useActionState } from "react";
 import { createPostAction } from "@/app/actions/social";
+import { recommendationCategories } from "@/lib/recommendation-categories";
 
 export function PostForm({ reelMode = false }: { reelMode?: boolean }) {
   const [state, action, pending] = useActionState(createPostAction, {});
@@ -17,6 +18,13 @@ export function PostForm({ reelMode = false }: { reelMode?: boolean }) {
           placeholder="Aklından geçenleri paylaş... #hashtag"
           className="mt-2 w-full resize-y rounded-lg border border-[#dce2dc] bg-white p-3.5 outline-none focus:border-[#4f8266] focus:ring-2 focus:ring-[#4f8266]/15"
         />
+      </label>
+      <label className="block text-sm font-medium">
+        İçerik kategorisi <span className="font-normal text-[#788179]">(önerileri iyileştirmek için isteğe bağlı)</span>
+        <select name="category" defaultValue="" className="mt-2 h-11 w-full rounded-lg border border-[#dce2dc] bg-white px-3">
+          <option value="">Kategori seçme</option>
+          {recommendationCategories.map(({ value, label }) => <option key={value} value={value}>{label}</option>)}
+        </select>
       </label>
       <label className="block text-sm font-medium">
         Fotoğraf veya video <span className="font-normal text-[#788179]">(isteğe bağlı)</span>
@@ -37,6 +45,15 @@ export function PostForm({ reelMode = false }: { reelMode?: boolean }) {
           </select>
         </label>
         <label className="block text-sm font-medium">
+          Gönderinin hedef kitlesi
+          <select name="audience" defaultValue="EVERYONE" className="mt-2 h-11 w-full rounded-lg border border-[#dce2dc] bg-white px-3">
+            <option value="EVERYONE">Herkes</option>
+            <option value="FOLLOWERS">Yalnızca takipçilerim</option>
+            <option value="CLOSE_FRIENDS">Yakın arkadaşlar</option>
+            <option value="SELECTED">Belirli kişiler</option>
+          </select>
+        </label>
+        <label className="block text-sm font-medium">
           Görsel efekti
           <select name="visualEffect" defaultValue="NONE" className="mt-2 h-11 w-full rounded-lg border border-[#dce2dc] bg-white px-3">
             <option value="NONE">Efekt yok</option>
@@ -47,6 +64,14 @@ export function PostForm({ reelMode = false }: { reelMode?: boolean }) {
           </select>
         </label>
       </div>
+      <label className="block text-sm font-medium">
+        Belirli kişiler <span className="font-normal text-[#788179]">(kullanıcı adlarını virgülle ayır)</span>
+        <input name="selectedUsernames" maxLength={1000} placeholder="@kullanici1, kullanici2" className="mt-2 h-11 w-full rounded-lg border border-[#dce2dc] px-3" />
+      </label>
+      <label className="flex items-center gap-3 rounded-lg border border-[#dce2dc] p-3 text-sm font-medium">
+        <input name="allowReshare" type="checkbox" defaultChecked className="size-4 accent-[#315b46]" />
+        Herkese açık gönderilerin yeniden paylaşılmasına izin ver
+      </label>
       <label className="flex items-center gap-3 rounded-lg border border-[#dce2dc] p-3 text-sm font-medium">
         <input name="isReel" type="checkbox" defaultChecked={reelMode} className="size-4 accent-[#315b46]" />
         Reels akışında da yayınla (video gerekir)
