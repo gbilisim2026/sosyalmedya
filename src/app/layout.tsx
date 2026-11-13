@@ -15,8 +15,13 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Gültepe Sosyal Medya",
-  description: "Fotoğraf ve video paylaşım topluluğu",
+  title: "Gültepe Sosyal",
+  applicationName: "Gültepe Sosyal",
+  description: "Gültepe Sosyal fotoğraf ve video paylaşım topluluğu.",
+  icons: {
+    icon: "/gultepe-sosyal-logo.jpg",
+    apple: "/gultepe-sosyal-logo.jpg",
+  },
 };
 
 export const instant = false;

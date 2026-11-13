@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { Bell, Clapperboard, Compass, Home, MessageCircle, PlusSquare, Search, Settings, UserRound } from "lucide-react";
+import { BrandLogo } from "@/app/brand-logo";
 
 type Props = { username: string; unreadCount: number; unreadMessages: number };
 
@@ -26,10 +27,7 @@ export function SiteNavigation({ username, unreadCount, unreadMessages }: Props)
   return (
     <>
       <aside className="site-sidebar" aria-label="Ana gezinme">
-        <Link href="/" className="site-brand">
-          <span className="site-brand-mark">g</span>
-          <span className="site-brand-name">gültepe</span>
-        </Link>
+        <BrandLogo className="site-brand" imageSize={44} />
         <nav className="site-sidebar-links">
           {links.map(({ href, label, Icon, badge }) => {
             const count = badge === "messages" ? unreadMessages : unreadCount;
@@ -50,7 +48,7 @@ export function SiteNavigation({ username, unreadCount, unreadMessages }: Props)
         </Link>
       </aside>
       <header className="mobile-topbar">
-        <Link href="/" className="site-brand"><span className="site-brand-mark">g</span><span className="site-brand-name">gültepe</span></Link>
+        <BrandLogo className="site-brand" imageSize={44} />
         <div className="flex items-center gap-1">
           <Link href="/notifications" aria-label="Bildirimler" className="mobile-topbar-icon"><Bell size={21} />{unreadCount > 0 && <span className="nav-badge">{unreadCount > 99 ? "99+" : unreadCount}</span>}</Link>
           <Link href="/messages" aria-label="Mesajlar" className="mobile-topbar-icon"><MessageCircle size={21} />{unreadMessages > 0 && <span className="nav-badge">{unreadMessages > 99 ? "99+" : unreadMessages}</span>}</Link>
@@ -62,10 +60,12 @@ export function SiteNavigation({ username, unreadCount, unreadMessages }: Props)
           { href: "/explore", label: "Keşfet", Icon: Compass },
           { href: "/create", label: "Oluştur", Icon: PlusSquare },
           { href: "/reels", label: "Reels", Icon: Clapperboard },
+          { href: "/notifications", label: "Bildirimler", Icon: Bell },
           { href: profileHref, label: "Profil", Icon: UserRound },
         ].map(({ href, label, Icon }) => {
           const active = isActive(href);
-          return <Link key={href} href={href} aria-label={label} aria-current={active ? "page" : undefined} className={`mobile-nav-item ${active ? "mobile-nav-item-active" : ""}`}><Icon size={22} strokeWidth={active ? 2.5 : 1.8} /><span>{label}</span></Link>;
+          const count = href === "/notifications" ? unreadCount : 0;
+          return <Link key={href} href={href} aria-label={label} aria-current={active ? "page" : undefined} className={`mobile-nav-item ${active ? "mobile-nav-item-active" : ""}`}><span className="relative"><Icon size={22} strokeWidth={active ? 2.5 : 1.8} />{count > 0 && <span className="nav-badge">{count > 99 ? "99+" : count}</span>}</span><span>{label}</span></Link>;
         })}
       </nav>
     </>

@@ -7,6 +7,7 @@ import { visiblePostsWhere } from "@/lib/visibility";
 import { toggleSavedPostAction } from "@/app/actions/social";
 import { redirect } from "next/navigation";
 import { UserAvatar } from "@/app/user-avatar";
+import { PostCarousel } from "@/app/post-carousel";
 
 export const instant = false;
 
@@ -20,6 +21,7 @@ export default async function SavedPostsPage() {
         include: {
           user: { select: { username: true, displayName: true, avatarUrl: true, avatarScale: true, avatarOffsetX: true, avatarOffsetY: true } },
           _count: { select: { likes: true, comments: true } },
+          mediaItems: { orderBy: { position: "asc" } },
         },
       },
     },
@@ -34,10 +36,7 @@ export default async function SavedPostsPage() {
           {saved.map(({ post }) => <article key={post.id} className="overflow-hidden rounded-2xl border border-[#e1e6df] bg-white">
             <Link href={`/post/${post.id}`} className="block p-4 hover:bg-[#fbfcfa]">
               <span className="flex items-center gap-2 text-sm font-semibold hover:underline"><UserAvatar {...post.user} className="size-8" />@{post.user.username}</span>
-              {post.mediaType === "PHOTO" && post.mediaUrl && (
-                // eslint-disable-next-line @next/next/no-img-element
-                <img src={post.mediaUrl} alt={post.caption ?? "Kaydedilen gönderi"} className="mt-3 max-h-80 w-full rounded-xl bg-[#f0f2ef] object-contain" />
-              )}
+              {post.mediaType === "PHOTO" && post.mediaUrl && <div className="mt-3 overflow-hidden rounded-xl"><PostCarousel images={post.mediaItems.length > 1 ? post.mediaItems.map(({ mediaUrl }) => mediaUrl) : [post.mediaUrl]} caption={post.caption} /></div>}
               {post.mediaType === "VIDEO" && post.mediaUrl && <video src={post.mediaUrl} muted playsInline preload="metadata" className="mt-3 max-h-80 w-full rounded-xl bg-black object-contain" />}
               <p className="mt-2 line-clamp-4 whitespace-pre-wrap text-sm text-[#526058]">{post.caption || (post.mediaType === "VIDEO" ? "Video gönderisi" : "Fotoğraf gönderisi")}</p>
               <p className="mt-3 text-xs text-[#788179]">{post._count.likes} beğeni · {post._count.comments} yorum · Gönderiyi aç →</p>

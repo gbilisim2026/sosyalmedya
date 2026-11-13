@@ -10,6 +10,8 @@ import { deleteStoryAction, reshareStoryAction, updateContentAudienceAction } fr
 import { UserAvatar } from "@/app/user-avatar";
 import { StoryMusicPlayer } from "@/app/stories/story-music-player";
 import { StoryMusicEditor } from "@/app/stories/story-music-editor";
+import { StoryReply } from "@/app/stories/story-reply";
+import { StoryPlayback } from "@/app/stories/story-playback";
 
 export const instant = false;
 
@@ -108,27 +110,35 @@ export default async function StoryPage({ params, searchParams }: StoryPageProps
           </label>
           <button className="h-10 rounded-lg bg-[#203d34] px-3 text-xs font-semibold text-white">Gizliliği güncelle</button>
         </form>}
-        <div className="relative mx-auto flex min-h-[55vh] max-h-[78vh] items-center justify-center overflow-hidden rounded-2xl bg-[#18231d]">
-          {story.mediaType === "VIDEO" ? <video src={story.mediaUrl} controls autoPlay playsInline className={`max-h-[78vh] w-full object-contain ${visualEffectClass(story.visualEffect)}`} /> : <Image src={story.mediaUrl} width={1080} height={1920} alt={`${story.user.username} hikâyesi`} unoptimized className={`max-h-[78vh] w-full object-contain ${visualEffectClass(story.visualEffect)}`} />}
-          {story.musicTitle && story.musicArtist && story.musicPreviewUrl && story.musicArtworkUrl && story.musicTrackUrl && <StoryMusicPlayer
-            title={story.musicTitle}
-            artist={story.musicArtist}
-            artworkUrl={story.musicArtworkUrl}
-            trackUrl={story.musicTrackUrl}
-            previewUrl={story.musicPreviewUrl}
-            startSeconds={story.musicStartSeconds ?? 0}
-            durationSeconds={story.musicDurationSeconds ?? 15}
-            labelStyle={story.musicLabelStyle}
-            labelPosition={story.musicLabelPosition}
-            labelScale={story.musicLabelScale}
-          />}
-          {story.caption && <p className="absolute bottom-8 left-4 right-4 mx-auto max-w-lg whitespace-pre-wrap rounded-xl bg-black/50 px-4 py-3 text-center text-base text-white">{story.caption}</p>}
-        </div>
+        <StoryPlayback
+          active={story.expiresAt > new Date()}
+          isVideo={story.mediaType === "VIDEO"}
+          previousHref={previousStory ? `/stories/${previousStory.id}` : null}
+          nextHref={nextStory ? `/stories/${nextStory.id}` : "/"}
+        >
+          <div className="relative mx-auto flex min-h-[55vh] max-h-[78vh] items-center justify-center overflow-hidden rounded-2xl bg-[#18231d]">
+            {story.mediaType === "VIDEO" ? <video src={story.mediaUrl} controls autoPlay playsInline className={`max-h-[78vh] w-full object-contain ${visualEffectClass(story.visualEffect)}`} /> : <Image src={story.mediaUrl} width={1080} height={1920} alt={`${story.user.username} hikâyesi`} unoptimized className={`max-h-[78vh] w-full object-contain ${visualEffectClass(story.visualEffect)}`} />}
+            {story.musicTitle && story.musicArtist && story.musicPreviewUrl && story.musicArtworkUrl && story.musicTrackUrl && <StoryMusicPlayer
+              title={story.musicTitle}
+              artist={story.musicArtist}
+              artworkUrl={story.musicArtworkUrl}
+              trackUrl={story.musicTrackUrl}
+              previewUrl={story.musicPreviewUrl}
+              startSeconds={story.musicStartSeconds ?? 0}
+              durationSeconds={story.musicDurationSeconds ?? 15}
+              labelStyle={story.musicLabelStyle}
+              labelPosition={story.musicLabelPosition}
+              labelScale={story.musicLabelScale}
+            />}
+            {story.caption && <p className="absolute bottom-8 left-4 right-4 mx-auto max-w-lg whitespace-pre-wrap rounded-xl bg-black/50 px-4 py-3 text-center text-base text-white">{story.caption}</p>}
+          </div>
+        </StoryPlayback>
         {story.sharedStory && <p className="mt-2 text-xs text-[#68716b]">Orijinal hikâye: <Link href={`/profile/${encodeURIComponent(story.sharedStory.user.username)}`} className="font-semibold hover:underline">@{story.sharedStory.user.username}</Link></p>}
         <div className="mt-5 flex items-center justify-between gap-3">
           {previousStory ? <Link href={`/stories/${previousStory.id}`} className="text-sm font-semibold text-[#557260] hover:underline">← Önceki</Link> : <span />}
           {nextStory ? <Link href={`/stories/${nextStory.id}`} className="text-sm font-semibold text-[#557260] hover:underline">Sonraki →</Link> : <Link href="/" className="text-sm text-[#557260] hover:underline">Akışa dön →</Link>}
         </div>
+        {story.userId !== currentUser.id && story.expiresAt > new Date() && <StoryReply storyId={story.id} />}
         {story.userId === currentUser.id && <div className="mt-4 flex justify-between gap-3">
           <Link href="/stories/archive" className="text-sm font-semibold text-[#557260] hover:underline">Hikâye arşivim</Link>
           <form action={deleteStoryAction.bind(null, story.id)}>

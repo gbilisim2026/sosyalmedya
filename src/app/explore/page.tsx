@@ -1,4 +1,3 @@
-import Image from "next/image";
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { Compass, Sparkles } from "lucide-react";
@@ -11,6 +10,7 @@ import { prisma } from "@/lib/prisma";
 import { recommendationCategories } from "@/lib/recommendation-categories";
 import { ExternalVideoExplorer } from "@/app/explore/external-video-explorer";
 import { DismissSuggestionButton, RecommendationFeedbackButtons } from "@/app/recommendation-controls";
+import { PostCarousel } from "@/app/post-carousel";
 
 export const instant = false;
 
@@ -68,7 +68,7 @@ export default async function ExplorePage({ searchParams }: { searchParams: Prom
               </header>
               <Link href={`/post/${post.id}`} className="block">
                 {post.sharedPost && <p className="px-3 py-2 text-xs text-[#68716b]">Yeniden paylaşım · @{post.sharedPost.user.username}</p>}
-                {post.mediaType === "PHOTO" && post.mediaUrl && <Image src={post.mediaUrl} alt={post.caption ?? "Keşfedilen gönderi"} width={720} height={900} unoptimized className="max-h-96 w-full bg-[#f0f2ef] object-contain" />}
+                {post.mediaType === "PHOTO" && post.mediaUrl && <PostCarousel images={post.mediaItems.length > 1 ? post.mediaItems.map(({ mediaUrl }) => mediaUrl) : [post.mediaUrl]} caption={post.caption} />}
                 {post.mediaType === "VIDEO" && post.mediaUrl && <video src={post.mediaUrl} controls playsInline preload="metadata" className="max-h-96 w-full bg-black object-contain" />}
                 {post.caption && <p className="line-clamp-4 whitespace-pre-wrap p-3 text-sm">{post.caption}</p>}
               </Link>

@@ -147,6 +147,7 @@ export async function getRecommendedPosts(viewerId: string, limit = 40, category
         select: { type: true },
       },
       _count: { select: { likes: true, comments: true } },
+      mediaItems: { orderBy: { position: "asc" } },
       sharedPost: { include: { user: { select: { username: true } } } },
       likes: {
         take: 6,

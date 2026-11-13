@@ -1,4 +1,3 @@
-import Image from "next/image";
 import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 import { SiteHeader } from "@/app/site-header";
@@ -12,6 +11,8 @@ import { editPostAction, updateContentAudienceAction } from "@/app/actions/socia
 import { UserAvatar } from "@/app/user-avatar";
 import { recommendationCategories } from "@/lib/recommendation-categories";
 import { recordPostViewAction } from "@/app/actions/social";
+import { PostCarousel } from "@/app/post-carousel";
+import { PostMediaInteraction } from "@/app/post-media-interaction";
 
 export const instant = false;
 
@@ -32,8 +33,9 @@ export default async function PostPage({ params, searchParams }: PostPageProps) 
     },
     include: {
       user: { select: { username: true, displayName: true, avatarUrl: true, avatarScale: true, avatarOffsetX: true, avatarOffsetY: true } },
-      sharedPost: { include: { user: { select: { username: true, displayName: true, avatarUrl: true, avatarScale: true, avatarOffsetX: true, avatarOffsetY: true } } } },
+      sharedPost: { include: { user: { select: { username: true, displayName: true, avatarUrl: true, avatarScale: true, avatarOffsetX: true, avatarOffsetY: true } }, mediaItems: { orderBy: { position: "asc" } } } },
       _count: { select: { likes: true, comments: true } },
+      mediaItems: { orderBy: { position: "asc" } },
       likes: {
         orderBy: { createdAt: "desc" },
         select: { user: { select: { username: true, displayName: true, avatarUrl: true, avatarScale: true, avatarOffsetX: true, avatarOffsetY: true } } },
@@ -74,7 +76,7 @@ export default async function PostPage({ params, searchParams }: PostPageProps) 
           <header className="flex items-center gap-3 p-4">
             <Link href={`/profile/${encodeURIComponent(post.user.username)}`}><UserAvatar {...post.user} className="size-10" /></Link>
             <Link href={`/profile/${encodeURIComponent(post.user.username)}`} className="text-sm font-semibold hover:underline">@{post.user.username}</Link>
-            <span className="ml-auto text-xs text-[#788179]">{post.visibility === "PUBLIC" ? "Herkese açık" : "Takipçilere özel"}{post.isReel ? " · Reels" : ""}</span>
+            <span className="ml-auto text-right text-xs text-[#788179]">{post.location && <span className="mb-1 block">{post.location}</span>}{post.visibility === "PUBLIC" ? "Herkese açık" : "Takipçilere özel"}{post.isReel ? " · Reels" : ""}</span>
           </header>
           {post.sharedPost && <Link href={`/post/${post.sharedPost.id}`} className="block border-y border-[#edf0eb] bg-[#fbfcfa] px-5 py-4 hover:bg-[#f1f4ef]">
             <p className="text-xs text-[#68716b]">@{post.user.username} yeniden paylaştı · Orijinal içerik</p>
@@ -82,13 +84,15 @@ export default async function PostPage({ params, searchParams }: PostPageProps) 
             <p className="mt-1 line-clamp-3 whitespace-pre-wrap text-sm">{post.sharedPost.caption ?? "Paylaşılan gönderi"}</p>
             <span className="mt-2 inline-block text-xs font-semibold text-[#557260]">Orijinal gönderiyi görüntüle →</span>
           </Link>}
-          {post.sharedPost?.mediaType === "PHOTO" && post.sharedPost.mediaUrl && <Image src={post.sharedPost.mediaUrl} alt={post.sharedPost.caption ?? "Yeniden paylaşılan gönderi"} width={1080} height={1350} unoptimized className="max-h-[78vh] w-full bg-[#edf0eb] object-contain" />}
+          {post.sharedPost?.mediaType === "PHOTO" && post.sharedPost.mediaUrl && <PostCarousel images={post.sharedPost.mediaItems.length > 1 ? post.sharedPost.mediaItems.map(({ mediaUrl }) => mediaUrl) : [post.sharedPost.mediaUrl]} caption={post.sharedPost.caption} />}
           {post.sharedPost?.mediaType === "VIDEO" && post.sharedPost.mediaUrl && <video src={post.sharedPost.mediaUrl} controls playsInline className="max-h-[78vh] w-full bg-black object-contain" />}
           {post.sharedPost?.caption && <p className="whitespace-pre-wrap px-5 py-4 text-sm leading-6">{post.sharedPost.caption}</p>}
           {post.mediaType === "PHOTO" && post.mediaUrl ? (
-            <div className={`relative aspect-[4/5] max-h-[78vh] bg-[#edf0eb] ${visualEffectClass(post.visualEffect)}`}>
-              <Image src={post.mediaUrl} alt={post.caption ?? "Gönderi"} fill sizes="(max-width: 768px) 100vw, 768px" unoptimized className="object-contain" />
-            </div>
+            <PostMediaInteraction postId={post.id} liked={likedByCurrentUser}>
+              <div className={visualEffectClass(post.visualEffect)}>
+                <PostCarousel images={post.mediaItems.length > 1 ? post.mediaItems.map(({ mediaUrl }) => mediaUrl) : [post.mediaUrl]} caption={post.caption} />
+              </div>
+            </PostMediaInteraction>
           ) : post.mediaType === "VIDEO" && post.mediaUrl ? (
             <video src={post.mediaUrl} controls playsInline className={`max-h-[78vh] w-full bg-black object-contain ${visualEffectClass(post.visualEffect)}`} />
           ) : (

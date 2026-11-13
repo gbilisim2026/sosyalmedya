@@ -820,6 +820,7 @@ Kullanıcılar text,resim ve vido olarak gönderi paylaşabilsinler,
  hikaye paylaşıldığında diğer kullanıcıların görmesi ve 
  her kullanıcıya ait profil sayfası özelliklerini de ekler misin?
   Bu özelliklere göre databasei ve frontendin de ayarlamalarını ve değişikliklerini gerçekleştir.
+ 
  10.Prompt:
   Paylaşılan gönderilerde kullanıcı, paylaştığı gönderinin herkes tarafından görünmesi ve sadece
 takipçisi tarafından görünmesi seçeneklerine sahip olsun, akışta diğer kullanıcının profiline
@@ -837,3 +838,4 @@ tarafından görüntülenebilsin,herkese açık paylaşılmadıysa sadece takip�
  görüntülenebilsin. Reels sayfasında + butonu ile reels ekleme de yer alsın. 
 Frontend ve ux-ui kısmı uyumlu,modern ve animasyonlar,renklerle modernize edilmiş olsun.
 Veritabanında da ilgili özelliklerde eksiklikler varsa eklensin.
+

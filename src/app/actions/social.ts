@@ -32,6 +32,8 @@ export async function createPostAction(
 
   const caption = String(formData.get("caption") ?? "").trim();
   if (caption.length > 2200) return { error: "Açıklama en fazla 2200 karakter olabilir." };
+  const location = String(formData.get("location") ?? "").trim();
+  if (location.length > 160) return { error: "Konum en fazla 160 karakter olabilir." };
   const visibilityValue = String(formData.get("visibility") ?? PostVisibility.PUBLIC);
   const effectValue = String(formData.get("visualEffect") ?? VisualEffect.NONE);
   const audienceValue = String(formData.get("audience") ?? ContentAudience.EVERYONE);
@@ -64,15 +66,35 @@ export async function createPostAction(
   }
   const isReel = formData.get("isReel") === "on";
 
-  const selectedFile = formData.get("media");
+  const mediaEntries = formData.getAll("media");
+  if (mediaEntries.some((entry) => !(entry instanceof File))) {
+    return { error: "Seçilen medya dosyaları geçersiz." };
+  }
+  const selectedFiles = mediaEntries.filter((entry): entry is File => entry instanceof File && entry.size > 0);
+  if (selectedFiles.length > 10) {
+    return { error: "Bir gönderide en fazla 10 fotoğraf paylaşabilirsin." };
+  }
+  if (selectedFiles.reduce((total, file) => total + file.size, 0) > 100 * 1024 * 1024) {
+    return { error: "Gönderideki dosyaların toplam boyutu en fazla 100 MB olabilir." };
+  }
+  if (selectedFiles.some((file) => file.type.startsWith("video/")) && selectedFiles.length > 1) {
+    return { error: "Bir gönderide yalnızca tek video paylaşabilirsin." };
+  }
+  if (selectedFiles.some((file) => file.type.startsWith("video/")) && selectedFiles.some((file) => file.type.startsWith("image/"))) {
+    return { error: "Fotoğraf ve videoyu aynı gönderide birlikte paylaşamazsın." };
+  }
+  const uploadedMedia: Array<{ mediaUrl: string; mediaType: MediaType }> = [];
   let mediaUrl: string | null = null;
   let mediaType: MediaType = MediaType.TEXT;
 
-  if (selectedFile instanceof File && selectedFile.size > 0) {
+  if (selectedFiles.length > 0) {
     try {
-      const saved = await saveUploadedMedia(selectedFile);
-      mediaUrl = saved.mediaUrl;
-      mediaType = saved.mediaType;
+      for (const file of selectedFiles) {
+        const saved = await saveUploadedMedia(file);
+        uploadedMedia.push(saved);
+      }
+      mediaUrl = uploadedMedia[0].mediaUrl;
+      mediaType = uploadedMedia[0].mediaType;
     } catch (error) {
       return { error: error instanceof Error ? error.message : "Dosya yüklenemedi." };
     }
@@ -90,6 +112,7 @@ export async function createPostAction(
         userId: user.id,
         caption: caption || null,
         category: categoryValue || null,
+        location: location || null,
         mediaUrl,
         mediaType,
         visibility: visibilityValue as PostVisibility,
@@ -97,6 +120,16 @@ export async function createPostAction(
         isReel,
         visualEffect: effectValue as VisualEffect,
         allowReshare,
+        ...(mediaType === MediaType.PHOTO
+          ? {
+              mediaItems: {
+                create: uploadedMedia.map(({ mediaUrl: itemUrl }, position) => ({
+                  mediaUrl: itemUrl,
+                  position,
+                })),
+              },
+            }
+          : {}),
         ...(audienceValue === ContentAudience.SELECTED
           ? { audienceUsers: { createMany: { data: selectedUsers.map(({ id }) => ({ userId: id })) } } }
           : {}),
@@ -1350,6 +1383,69 @@ export async function sendDirectMessageAction(
   revalidatePath(`/messages/${conversationId}`);
   revalidatePath("/messages");
   return { success: "Mesaj gönderildi.", resetKey: new Date().toISOString() };
+}
+
+export async function sendStoryReplyAction(
+  storyId: string,
+  _previousState: SocialFormState,
+  formData: FormData,
+): Promise<SocialFormState> {
+  const user = await getCurrentUser();
+  if (!user) redirect("/login");
+
+  const content = String(formData.get("content") ?? "").trim();
+  if (!content || content.length > 4000) {
+    return { error: "Yanıtını yaz (en fazla 4000 karakter)." };
+  }
+  const story = await prisma.story.findFirst({
+    where: {
+      id: storyId,
+      userId: { not: user.id },
+      isArchived: false,
+      expiresAt: { gt: new Date() },
+      AND: [visibleStoriesWhere(user.id)],
+    },
+    select: { userId: true },
+  });
+  if (!story) return { error: "Bu hikâyeye artık yanıt verilemiyor." };
+  const recipient = await prisma.user.findFirst({
+    where: { id: story.userId, AND: [usersCanMessageWhere(user.id)] },
+    select: { id: true },
+  });
+  if (!recipient) return { error: "Bu kullanıcıya mesaj gönderilemiyor." };
+
+  const [participantOneId, participantTwoId] = [user.id, recipient.id].sort();
+  const conversation = await prisma.directConversation.upsert({
+    where: { pairKey: `${participantOneId}:${participantTwoId}` },
+    create: {
+      pairKey: `${participantOneId}:${participantTwoId}`,
+      participantOneId,
+      participantTwoId,
+      status: "PENDING",
+      requestedById: user.id,
+    },
+    update: {},
+    select: { id: true, status: true, requestedById: true },
+  });
+  if (conversation.status === "PENDING" && conversation.requestedById !== user.id) {
+    return { error: "Yanıt göndermek için önce mesaj isteğini kabul etmelisin." };
+  }
+
+  await prisma.$transaction([
+    prisma.directMessage.create({
+      data: { conversationId: conversation.id, senderId: user.id, content },
+    }),
+    prisma.notification.create({
+      data: { userId: recipient.id, actorId: user.id, type: NotificationType.MESSAGE },
+    }),
+    prisma.directConversation.update({
+      where: { id: conversation.id },
+      data: { updatedAt: new Date() },
+    }),
+  ]);
+  revalidatePath(`/messages/${conversation.id}`);
+  revalidatePath("/messages");
+  return { success: "Yanıtın mesaj olarak gönderildi.", resetKey: new Date().toISOString() };
 }
 
 export async function shareSongOrStatusAction(

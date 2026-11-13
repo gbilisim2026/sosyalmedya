@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useActionState, useState } from "react";
 import { Eye, EyeOff } from "lucide-react";
 import { loginAction, registerAction } from "@/app/actions/auth";
+import { BrandLogo } from "@/app/brand-logo";
 
 type AuthFormProps = {
   mode: "login" | "register";
@@ -21,13 +22,11 @@ export function AuthForm({ mode, registered = false }: AuthFormProps) {
     <main className="flex min-h-screen items-center justify-center bg-[#f4f6f2] px-5 py-12 text-[#202522]">
       <section className="grid w-full max-w-5xl overflow-hidden rounded-2xl bg-white shadow-[0_24px_80px_rgba(28,43,33,0.12)] md:grid-cols-[1.05fr_0.95fr]">
         <div className="relative hidden min-h-[640px] flex-col justify-between overflow-hidden bg-[#203d34] p-10 text-white md:flex">
-          <div className="absolute -right-20 top-28 h-64 w-64 rounded-full border-[34px] border-[#bfe7a4]/20" />
-          <div className="absolute -bottom-24 -left-12 h-72 w-72 rounded-full bg-[#d8efbd]" />
-          <Link href="/" className="relative z-10 text-xl font-bold tracking-tight">
-            Gültepe <span className="text-[#c4eea7]">Sosyal Medya</span>
-          </Link>
+          <div className="absolute -right-20 top-28 h-64 w-64 rounded-full border-[34px] border-white/10" />
+          <div className="absolute -bottom-24 -left-12 h-72 w-72 rounded-full bg-gradient-to-br from-[#8d4de8]/35 to-[#ed4c79]/20 blur-sm" />
+          <BrandLogo className="brand-logo-light relative z-10 text-xl font-bold tracking-tight text-white" imageSize={52} />
           <div className="relative z-10 max-w-sm pb-5">
-            <p className="mb-4 text-sm font-semibold uppercase tracking-[0.16em] text-[#c4eea7]">
+            <p className="mb-4 text-sm font-semibold uppercase tracking-[0.16em] text-[#d3cbff]">
               Yakın kal
             </p>
             <h1 className="text-4xl font-semibold leading-tight">
@@ -40,9 +39,7 @@ export function AuthForm({ mode, registered = false }: AuthFormProps) {
         </div>
 
         <div className="flex min-h-[640px] flex-col justify-center px-7 py-10 sm:px-12">
-          <Link href="/" className="mb-12 text-lg font-bold tracking-tight md:hidden">
-            Gültepe <span className="text-[#e36650]">Sosyal Medya</span>
-          </Link>
+          <BrandLogo className="mb-12 text-lg font-bold tracking-tight text-[#203d34] md:hidden" imageSize={48} />
           <div className="mb-8">
             <p className="mb-2 text-sm font-medium text-[#64806f]">
               {isRegistering ? "Yeni bir başlangıç" : "Tekrar hoş geldin"}

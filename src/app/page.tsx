@@ -10,6 +10,9 @@ import { PostControls } from "@/app/post-controls";
 import { UserAvatar } from "@/app/user-avatar";
 import { getRecommendedPosts } from "@/lib/recommendations";
 import { RecommendationFeedbackButtons } from "@/app/recommendation-controls";
+import { PostCarousel } from "@/app/post-carousel";
+import { PostMediaInteraction } from "@/app/post-media-interaction";
+import { BrandLogo } from "@/app/brand-logo";
 
 export const instant = false;
 
@@ -20,9 +23,7 @@ export default async function Home() {
     return (
       <main className="min-h-screen bg-[#f4f6f2] px-5 py-8 text-[#202522] sm:px-10">
         <header className="mx-auto flex max-w-6xl items-center justify-between">
-          <Link href="/" className="text-xl font-bold tracking-tight">
-            Gültepe <span className="text-[#e36650]">Sosyal Medya</span>
-          </Link>
+          <BrandLogo className="text-xl font-bold tracking-tight text-[#202522]" imageSize={52} />
           <Link href="/login" className="text-sm font-semibold text-[#315b46] hover:underline">
             Giriş yap
           </Link>
@@ -76,15 +77,28 @@ export default async function Home() {
     );
   }
 
-  const [posts, stories] = await Promise.all([
+  const [posts, fetchedStories] = await Promise.all([
     getRecommendedPosts(currentUser.id, 20),
     prisma.story.findMany({
       where: { isArchived: false, expiresAt: { gt: new Date() }, AND: [visibleStoriesWhere(currentUser.id)] },
-      include: { user: { select: { username: true, displayName: true, avatarUrl: true, avatarScale: true, avatarOffsetX: true, avatarOffsetY: true } } },
+      include: {
+        user: { select: { username: true, displayName: true, avatarUrl: true, avatarScale: true, avatarOffsetX: true, avatarOffsetY: true } },
+        views: { where: { viewerId: currentUser.id }, select: { id: true }, take: 1 },
+      },
       orderBy: { createdAt: "desc" },
       take: 20,
     }),
   ]);
+  const storiesByUser = new Map<string, (typeof fetchedStories)[number]>();
+  for (const story of fetchedStories) {
+    if (!storiesByUser.has(story.userId)) storiesByUser.set(story.userId, story);
+  }
+  const stories = [...storiesByUser.values()].sort((a, b) => {
+    if (a.userId === currentUser.id) return -1;
+    if (b.userId === currentUser.id) return 1;
+    if (Boolean(a.views.length) !== Boolean(b.views.length)) return a.views.length ? 1 : -1;
+    return b.createdAt.getTime() - a.createdAt.getTime();
+  });
   const likedPostIds = new Set(
     (await prisma.like.findMany({
       where: { userId: currentUser.id, postId: { in: posts.map((post) => post.id) } },
@@ -108,20 +122,25 @@ export default async function Home() {
               <Link href="/stories/create" className="inline-flex items-center gap-2 rounded-lg border border-[#dce2dc] bg-white px-3 py-2 text-xs font-semibold text-[#315b46] hover:bg-[#edf4e9]"><Plus size={15} /> Hikâye ekle</Link>
             </div>
           </div>
-          {stories.length > 0 && (
-            <section aria-label="Aktif hikâyeler" className="story-strip mb-6 overflow-x-auto rounded-2xl border border-[#e1e6df] bg-white p-4">
-              <div className="flex w-max gap-4">
-                {stories.map((story) => (
-                  <Link key={story.id} href={`/stories/${story.id}`} className="flex w-16 flex-col items-center gap-2">
-                    <span className={`grid size-14 place-items-center rounded-full bg-gradient-to-br from-[#e36650] via-[#e7aa58] to-[#4f8266] p-[2px] ${visualEffectClass(story.visualEffect)}`}>
-                      <UserAvatar {...story.user} className="size-full border-2 border-white text-sm" />
-                    </span>
-                    <span className="w-full truncate text-center text-[11px]">{story.user.username}</span>
-                  </Link>
-                ))}
-              </div>
-            </section>
-          )}
+          <section aria-label="Aktif hikâyeler" className="story-strip mb-6 overflow-x-auto rounded-2xl border border-[#e1e6df] bg-white p-4">
+            <div className="flex w-max gap-4">
+              <Link href="/stories/create" className="flex w-16 flex-col items-center gap-2">
+                <span className="relative grid size-14 place-items-center rounded-full border border-dashed border-[#d6d6de] bg-[#f7f7f9] text-[#555560]">
+                  <UserAvatar username={currentUser.username} displayName={currentUser.username} className="size-full text-sm" />
+                  <span className="absolute -bottom-0.5 -right-0.5 grid size-5 place-items-center rounded-full border-2 border-white bg-[#5d4ce0] text-white"><Plus size={12} /></span>
+                </span>
+                <span className="w-full truncate text-center text-[11px]">Hikâyen</span>
+              </Link>
+              {stories.filter((story) => story.userId !== currentUser.id).map((story) => (
+                <Link key={story.id} href={`/stories/${story.id}`} className="flex w-16 flex-col items-center gap-2">
+                  <span className={`grid size-14 place-items-center rounded-full p-[2px] ${story.views.length ? "bg-[#d6d6de]" : "bg-gradient-to-br from-[#f7b348] via-[#ee4c78] to-[#7950da]"} ${visualEffectClass(story.visualEffect)}`}>
+                    <UserAvatar {...story.user} className="size-full border-2 border-white text-sm" />
+                  </span>
+                  <span className="w-full truncate text-center text-[11px]">{story.user.username}</span>
+                </Link>
+              ))}
+            </div>
+          </section>
           {posts.length === 0 ? (
             <div className="rounded-2xl border border-dashed border-[#cfd8d0] bg-white px-6 py-16 text-center">
               <span className="mx-auto grid size-14 place-items-center rounded-2xl bg-[#edf4e9] text-[#4f8266]">
@@ -141,6 +160,7 @@ export default async function Home() {
                     <Link href={`/profile/${encodeURIComponent(post.user.username)}`} className="min-w-0 hover:text-[#315b46]">
                       <p className="truncate text-sm font-semibold">{post.user.displayName ?? post.user.username}</p>
                       <p className="text-xs text-[#788179]">@{post.user.username}</p>
+                      {post.location && <p className="mt-0.5 truncate text-[11px] text-[#777781]">{post.location}</p>}
                     </Link>
                     <span className="ml-auto rounded-full bg-[#f1f4ef] px-2.5 py-1 text-[10px] font-medium text-[#68716b]">
                       {post.visibility === "PUBLIC" ? "Herkes" : "Takipçiler"}{post.isReel ? " · Reels" : ""}
@@ -159,8 +179,14 @@ export default async function Home() {
                   {post.mediaType === "VIDEO" && post.mediaUrl ? (
                     <video className={`max-h-[680px] w-full bg-black object-contain ${visualEffectClass(post.visualEffect)}`} src={post.mediaUrl} controls />
                   ) : post.mediaType === "PHOTO" && post.mediaUrl ? (
-                    // eslint-disable-next-line @next/next/no-img-element
-                    <img className={`max-h-[680px] w-full bg-[#f0f2ef] object-contain ${visualEffectClass(post.visualEffect)}`} src={post.mediaUrl} alt={post.caption ?? "Gönderi görseli"} />
+                    <PostMediaInteraction postId={post.id} liked={likedPostIds.has(post.id)}>
+                      <div className={visualEffectClass(post.visualEffect)}>
+                        <PostCarousel
+                          images={post.mediaItems.length > 1 ? post.mediaItems.map(({ mediaUrl }) => mediaUrl) : [post.mediaUrl]}
+                          caption={post.caption}
+                        />
+                      </div>
+                    </PostMediaInteraction>
                   ) : (
                     <div className={`whitespace-pre-wrap px-5 py-8 text-lg leading-8 ${visualEffectClass(post.visualEffect)}`}>{post.caption}</div>
                   )}

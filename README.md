@@ -42,6 +42,7 @@ The application stores account privacy, follow requests, saved posts, stories, n
 - Account username, password, and privacy settings are available at `/settings`.
 - Direct conversations are available at `/messages`; profile-level message controls start a private conversation.
 - Story and post audiences support everyone, followers, close friends, and selected usernames.
+- Photo posts support up to 10 images, with ordering and preview controls before publishing and swipeable carousels in the feed and post detail.
 - Saved posts and archived posts are available at `/saved` and `/archive`.
 - Blocking, profile controls, repost permissions, pinning, highlighting, and story/reel view statistics are enforced on the server.
 - DM photos and profile pictures use private media URLs; account owners can adjust avatar zoom and position from their profile.

@@ -9,7 +9,7 @@ import { visualEffectClass } from "@/lib/effects";
 import { visiblePostsWhere, visibleStoriesWhere } from "@/lib/visibility";
 import { PostControls } from "@/app/post-controls";
 import { startConversationAction } from "@/app/actions/social";
-import { Globe2, LockKeyhole, Pin, Star } from "lucide-react";
+import { Globe2, Images, LockKeyhole, Pin, Star } from "lucide-react";
 import { UserAvatar } from "@/app/user-avatar";
 import { AvatarEditor } from "@/app/profile/[username]/avatar-editor";
 import { BlockToggle } from "@/app/profile/[username]/profile-actions";
@@ -111,6 +111,7 @@ export default async function ProfilePage({ params }: ProfilePageProps) {
           where: { userId: profile.id, AND: [visiblePostsWhere(currentUser.id)] },
           include: {
             _count: { select: { likes: true, comments: true } },
+            mediaItems: { orderBy: { position: "asc" } },
             sharedPost: { include: { user: { select: { username: true } } } },
           },
           orderBy: [{ isPinned: "desc" }, { createdAt: "desc" }],
@@ -260,6 +261,7 @@ export default async function ProfilePage({ params }: ProfilePageProps) {
               {posts.length === 0 ? <p className="py-12 text-center text-sm text-[#788179]">Henüz gönderi yok.</p> :
                 <div className="mt-4 grid grid-cols-2 gap-2 sm:grid-cols-3 sm:gap-4">
                   {posts.map((post) => <article key={post.id} className="relative flex aspect-square min-w-0 flex-col justify-between overflow-hidden rounded-xl border border-[#e1e6df] bg-white">
+                    {post.mediaItems.length > 1 && <span className="absolute right-2 top-2 z-10 rounded-lg bg-black/60 p-1.5 text-white" aria-label="Çoklu fotoğraf gönderisi"><Images size={15} /></span>}
                     {(post.isPinned || post.isFeatured) && <span className="absolute left-2 top-2 z-10 inline-flex items-center gap-1 rounded-full bg-white/90 px-2 py-1 text-[10px] font-semibold shadow">
                       {post.isPinned && <><Pin size={11} /> Sabit</>}
                       {post.isFeatured && <><Star size={11} /> Öne çıkan</>}

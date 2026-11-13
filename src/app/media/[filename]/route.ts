@@ -36,7 +36,7 @@ export async function GET(
   }
 
   const mediaUrl = `/media/${filename}`;
-  const [visiblePost, visibleStory, visibleMessage, visibleAvatar] = await Promise.all([
+  const [visiblePost, visibleCarouselPost, visibleStory, visibleMessage, visibleAvatar] = await Promise.all([
     prisma.post.findFirst({
       where: {
         mediaUrl,
@@ -44,6 +44,20 @@ export async function GET(
           { userId: user.id, sharedPostId: null },
           { AND: [visiblePostsWhere(user.id)] },
         ],
+      },
+      select: { id: true },
+    }),
+    prisma.postMedia.findFirst({
+      where: {
+        mediaUrl,
+        post: {
+          is: {
+            OR: [
+              { userId: user.id, sharedPostId: null },
+              { AND: [visiblePostsWhere(user.id)] },
+            ],
+          },
+        },
       },
       select: { id: true },
     }),
@@ -85,7 +99,7 @@ export async function GET(
       select: { id: true },
     }),
   ]);
-  if (!visiblePost && !visibleStory && !visibleMessage && !visibleAvatar) notFound();
+  if (!visiblePost && !visibleCarouselPost && !visibleStory && !visibleMessage && !visibleAvatar) notFound();
 
   const filePath = path.join(process.cwd(), "private-uploads", filename);
   let file;
